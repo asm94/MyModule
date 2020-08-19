@@ -1,0 +1,90 @@
+import seaborn as sns
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import itertools
+from scipy import stats
+from mpl_toolkits.mplot3d import Axes3D
+
+#Plot confusion matrix
+def plot_confusion_matrix(cm, classes, title=None, cmap=plt.cm.Blues):
+    sns.set_style("white")   
+
+    plt.imshow(cm, interpolation='nearest', cmap=cmap)
+    plt.title(title)
+    #plt.colorbar()
+    tick_marks = np.arange(len(classes))
+    plt.xticks(tick_marks, classes, rotation=45)
+    plt.yticks(tick_marks, classes)
+
+    thresh = cm.max() / 2.
+    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+        plt.text(j, i, cm[i, j],
+                 horizontalalignment="center", fontsize=18,
+                 color="white" if cm[i, j] > thresh else "black")
+
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
+    plt.tight_layout()
+    plt.show()
+    
+#Plot beeswarm
+def plot_beeswarm(data, x_label=None, y_label=None, x_ticklabels=[]):
+    sns.set_style("whitegrid")  
+
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)    
+    ax = sns.swarmplot(data=data)
+
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+
+    ax.set_xticklabels(x_ticklabels)    
+
+    plt.show()
+    
+#Plot scatter
+def plot_2D_scatters(data, ticklabels=None):
+    sns.set_style("whitegrid")  
+
+    data = pd.DataFrame(data, columns=ticklabels)
+    
+    #Define gragh size
+    divisor = sorted([i for i in range(1,len(data.columns)+1) if len(data.columns)%i == 0])
+    vertical = divisor[int(np.median(range(0,len(divisor))))]
+    horizonal = int(len(data.columns)/vertical)
+
+    fig, ax = plt.subplots(vertical, horizonal, figsize=(5*horizonal, 4*vertical), squeeze=False)
+    
+    for i, pair in enumerate(itertools.combinations(range(0,len(data.columns)), 2)):    
+        hor_idx = i%len(data.columns)
+        ver_idx = int(i/len(data.columns))
+        
+        sns.scatterplot(x=data.iloc[:,pair[0]], y=data.iloc[:,pair[1]], ax=ax[ver_idx][hor_idx])
+        
+        corr = stats.pearsonr(data.iloc[:,pair[0]], data.iloc[:,pair[1]])[0]
+        ax[ver_idx][hor_idx].text(0.95, 0.90, f'R={round(corr,3)}', size=10, transform=ax[ver_idx][hor_idx].transAxes,
+                                  horizontalalignment = 'right', bbox=dict(facecolor='white', edgecolor='black'))
+     
+    plt.show()  
+    
+  
+#Plot 3D scatter
+def plot_3D_scattaer(x,y,z,x_label=None,y_label=None,z_label=None):
+    sns.set_style("whitegrid") 
+
+    fig = plt.figure()
+    ax = Axes3D(fig)
+
+    ax.plot(x,y,z,marker="o",linestyle='None')
+    
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+    ax.set_zlabel(z_label)
+    
+    ax.set_xlim(max(list((x))), min(list(x)))
+
+    plt.show()
+    
+
+    
