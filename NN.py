@@ -1,5 +1,11 @@
+import tensorflow as tf
 from tensorflow import keras
+from tensorflow.keras.layers import Input, Dense, Dropout, Flatten, Conv2D, MaxPooling2D, Lambda
+from tensorflow.keras.models import Model
+from tensorflow.keras.applications import vgg16
+from tensorflow.keras.applications import efficientnet
 import numpy as np
+import matplotlib.pyplot as plt
 def get_fitted_model(x_train,y_train,x_test=None,y_true=None,loss=None,optimizer=keras.optimizers.Adam(),
                      training_epoch=10,batch_size=8,class_weight=None,metrics=['accuracy'],callbacks=None,
                      display_training=False,plot_history=False,path_save_history=None,save_index=''):
@@ -49,8 +55,7 @@ def get_fitted_model(x_train,y_train,x_test=None,y_true=None,loss=None,optimizer
     ##Define model
     #Make new model
     model = get_model(x_train.shape[1], x_train.shape[2], x_train.shape[3], np.unique(np.argmax(y_train,axis=1)).size)
-    print(model.summary())
-
+    
     #Define 'loss' depending on class number(when 'loss' is not defined)
     if loss==None: loss=keras.losses.BinaryCrossentropy() if np.unique(y_train).size==2 else keras.losses.CategoricalCrossentropy()
 
@@ -73,10 +78,6 @@ def get_fitted_model(x_train,y_train,x_test=None,y_true=None,loss=None,optimizer
     return model
     
 ##Define model architecture
-from tensorflow.keras.layers import Input, Dense, Dropout, Flatten, Conv2D, MaxPooling2D, Lambda
-from tensorflow.keras.models import Model
-from tensorflow.keras.applications import vgg16
-from tensorflow.keras.applications import efficientnet  
 def get_model(input_height, input_width, input_channel, class_num):
     '''
     #Data parameter(required)
@@ -114,7 +115,6 @@ def get_model(input_height, input_width, input_channel, class_num):
     return model
 
 ##Plot and save trainig history
-import matplotlib.pyplot as plt
 def plot_training_history(model_history, path_save_history=None, save_index=''):
     fig, ax = plt.subplots(1, 2, figsize=(10, 4))
 
@@ -129,7 +129,7 @@ def plot_training_history(model_history, path_save_history=None, save_index=''):
     ax[1].set_ylabel('Loss')
     ax[1].legend()
 
-    plt.show()
+    #plt.show()
 
     if path_save_history!=None:
         fig.savefig(path_save_history+r'\history_data{0}.png'.format(save_index),dpi=100)

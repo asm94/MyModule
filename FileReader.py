@@ -1,6 +1,8 @@
 #Get image in a folder
 import glob
 import cv2
+import numpy as np
+import pandas as pd
 def read_img(path, sub_check=False, name_return=False):
     '''
     #Setting parameter(required)
@@ -34,8 +36,8 @@ def read_img(path, sub_check=False, name_return=False):
      
     return img_list if not name_return else img_list, name_list
 
+
 #For path name include japanese
-import numpy as np
 def imread(filename, flags=cv2.IMREAD_COLOR, dtype=np.uint8):
     try:
         n = np.fromfile(filename, dtype)
@@ -44,3 +46,30 @@ def imread(filename, flags=cv2.IMREAD_COLOR, dtype=np.uint8):
     except Exception as e:
         print(e)
         return None
+
+
+#Get csv in a folder as pandas.DataFrame
+def read_csv(path, encode, sub_check=False, target_name=None):
+    #Get all csv file-path in a folder 
+    target_files = glob.glob(path+'\**\*.csv', recursive=True) if sub_check else glob.glob(path+'\*.csv')
+
+    #For return
+    merged_file = pd.DataFrame()
+
+    #All csv combine
+    for filepath in target_files:
+        
+        #Exclude file not including targetname
+        filename = filepath.split('\\')[-1]
+        if target_name!=None and target_name not in filename: continue        
+    
+        #Read a csv as pandas.DataFrame
+        input_file = pd.read_csv(filepath, encoding=encode, sep=",", engine='python')
+        
+        #New csv conbine
+        merged_file = pd.concat([merged_file, input_file], axis=0)
+
+    #Index reset
+    merged_file = merged_file.reset_index(drop=True)
+    
+    return merged_file
