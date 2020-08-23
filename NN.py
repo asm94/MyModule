@@ -55,7 +55,8 @@ def get_fitted_model(x_train,y_train,x_test=None,y_true=None,loss=None,optimizer
     ##Define model
     #Make new model
     model = get_model(x_train.shape[1], x_train.shape[2], x_train.shape[3], np.unique(np.argmax(y_train,axis=1)).size)
-    
+    print(model.summary())
+
     #Define 'loss' depending on class number(when 'loss' is not defined)
     if loss==None: loss=keras.losses.BinaryCrossentropy() if np.unique(y_train).size==2 else keras.losses.CategoricalCrossentropy()
 
@@ -103,14 +104,16 @@ def get_model(input_height, input_width, input_channel, class_num):
 
     model = Model(inputs=base_model.input, outputs=output)
 
+    
     base_model.trainable = True
     
     #for train part of model
     layer_names = [l.name for l in base_model.layers]
-    idx = layer_names.index('block5_conv1') #For VGG16        
+    idx = layer_names.index('block3_conv1') #For VGG16        
     #idx = layer_names.index('block7a_expand_conv') #For EfficientNetB7
     for layer in base_model.layers[:idx]:
-        layer.trainable = False        
+        layer.trainable = False 
+    
 
     return model
 
