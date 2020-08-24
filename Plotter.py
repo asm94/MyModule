@@ -4,7 +4,8 @@ import numpy as np
 import pandas as pd
 import itertools
 from scipy import stats
-from mpl_toolkits.mplot3d import Axes3D
+from mpl_toolkits.mplot3d import Axes3D   
+from sklearn.metrics import auc
 
 #Plot confusion matrix
 def plot_confusion_matrix(cm, classes, title=None, cmap=plt.cm.Blues):
@@ -28,6 +29,8 @@ def plot_confusion_matrix(cm, classes, title=None, cmap=plt.cm.Blues):
     plt.tight_layout()
     plt.show()
     
+    return
+    
 #Plot beeswarm
 def plot_beeswarm(data, x_label=None, y_label=None, x_ticklabels=[]):
     sns.set_style("whitegrid")  
@@ -43,8 +46,10 @@ def plot_beeswarm(data, x_label=None, y_label=None, x_ticklabels=[]):
 
     plt.show()
     
+    return
+    
 #Plot scatters
-def plot_2D_scatters(data,ticklabels=None,group=None,group_name=None,display_correlation=False):
+def plot_2D_scatters(data, ticklabels=None, group=None, group_name=None, display_correlation=False):
     sns.set_style("whitegrid")  
 
     data = pd.DataFrame(data, columns=ticklabels)
@@ -81,9 +86,11 @@ def plot_2D_scatters(data,ticklabels=None,group=None,group_name=None,display_cor
      
     plt.show()
     
+    return
+    
   
 #Plot 3D scatter
-def plot_3D_scattaer(x,y,z,x_label=None,y_label=None,z_label=None,group=None,group_name=None):
+def plot_3D_scattaer(x,y,z, x_label=None,y_label=None,z_label=None, group=None,group_name=None):
     '''  
     Parameters
     ----------
@@ -130,5 +137,20 @@ def plot_3D_scattaer(x,y,z,x_label=None,y_label=None,z_label=None,group=None,gro
 
     plt.show()
     
+    return
+ 
+#Plot scatter as line gragh
+def plot_curve(axes, x, y, x_label=None, y_label=None, title=None, display=False):    
+    axes.plot(x, y, label='AUC = %.2f'%auc(x,y))
+    axes.legend(bbox_to_anchor=(1, 0), loc='lower right', borderaxespad=1, fontsize=8)
+    axes.grid(color='gray')
+    if x_label != None: axes.set_xlabel(x_label)
+    if y_label != None: axes.set_ylabel(y_label)
+    if title != None: axes.set_title(title)
+    axes.set_xlim(0.0, 1.0)
+    axes.set_ylim(0.0, 1.0)
+    
+    if display: plt.show()
 
+    return
     
