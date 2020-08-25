@@ -1,5 +1,6 @@
 import umap
 import pandas as pd
+import numpy as np
 
 #Compress dimention
 def dimensional_compressor(df, ignore_column=[], dimention=1, random_seed=None):
@@ -35,3 +36,16 @@ def dimensional_compressor(df, ignore_column=[], dimention=1, random_seed=None):
     compressed_df = pd.DataFrame(compressed_np)
     
     return pd.concat([non_target_df, compressed_df], axis=1)
+
+
+def padding_ndarray(data, target_dim, target_length, value=np.nan):
+    
+    data = np.array(data)
+    
+    padding_length = target_length - data.shape[data.ndim-target_dim]
+    padding_shape = list(data.shape)
+    padding_shape[data.ndim-target_dim] = padding_length
+    
+    padding_data = np.full(padding_shape, np.nan)
+    
+    return np.concatenate([data,padding_data], axis=data.ndim-target_dim)

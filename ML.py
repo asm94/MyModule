@@ -37,8 +37,10 @@ def fit_predict(clf, x_train, y_train, x_test, y_true, use_second_model=False, c
     #"XGBoost" mode
     if mode=='xgb':
         eval_set = None if early_stop_num==None else [(x_test, y_true)]
-        clf.fit(x_train, y_train, sample_weight=w_train, early_stopping_rounds=early_stop_num, eval_set=eval_set)
-        if use_second_model: clf_sec.fit(x_train_sec, y_train_sec, sample_weight=w_train_sec, early_stopping_rounds=early_stop_num, eval_set=eval_set)
+        clf.fit(x_train, y_train, sample_weight=w_train, early_stopping_rounds=early_stop_num, eval_set=eval_set, 
+                verbose=0)
+        if use_second_model: clf_sec.fit(x_train_sec, y_train_sec, sample_weight=w_train_sec,
+                                         early_stopping_rounds=early_stop_num, eval_set=eval_set, verbose=0)
     
     #Predict
     proba_both = clf.predict_proba(x_test)
