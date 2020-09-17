@@ -1,5 +1,10 @@
 import pandas as pd
 import numpy as np
+import shap
+import pydotplus
+from sklearn import tree
+from sklearn.inspection import plot_partial_dependence
+import matplotlib.pyplot as plt
 
 #Machine learning validation
 def fit_predict(clf, x_train, y_train, x_test, y_true, use_second_model=False, clf_sec=None, x_train_sec=pd.DataFrame(), y_train_sec=pd.DataFrame(),
@@ -48,4 +53,67 @@ def fit_predict(clf, x_train, y_train, x_test, y_true, use_second_model=False, c
     
     
     return proba_both if not use_second_model else np.stack([proba_both, proba_both_sec])
+
+
+#Get shap-value of binary classification for decision tree
+def get_shap_values(clf, x_train, y_train, x_test, pred_positive_only=False, pred_negative_only=False,
+                    is_nega=False, do_display=False, display_idx=0):
     
+    #Training model
+    clf.fit(x_train, y_train)
+    
+    #Choice predicted class
+    if pred_positive_only or pred_negative_only:
+        y_pred = clf.predict(x_test)
+        if pred_positive_only and not pred_negative_only:
+            x_test = x_test.iloc[np.where(y_pred==1)[0],:]
+        if not pred_positive_only and pred_negative_only:  
+            x_test = x_test.iloc[np.where(y_pred==0)[0],:]
+    
+    #Make shap explaner
+    explainer = shap.TreeExplainer(clf)
+    
+    #Get shap-value
+    shap_values = explainer.shap_values(x_test)
+            
+    #Degree that true label is negative if 'is_nega' is TRUE
+    if is_nega:
+        odds_to_proba = np.frompyfunc(lambda x: -1*x, 1, 1) 
+        shap_values = odds_to_proba(shap_values)
+        explainer.expected_value *= -1
+    
+    #Display shap-value of target index
+    if do_display:
+        shap.initjs()
+        shap.force_plot(explainer.expected_value, shap_values[0,:], x_test.iloc[display_idx,:],matplotlib=True,link='logit')
+    
+    #Calculate sum of shap-value by columns                
+    se=pd.Series()
+    for i, clm in enumerate(x_test.columns):
+        se[clm] = sum(list(map(lambda x: x/(1+x) if x>=0 else x/(1-x), shap_values[:,i])))            
+    se['count'] = len(x_test)
+    
+    return se
+    
+
+##Display partial dependance
+def display_PDP(clf, df_train, path_dot=None):
+    #Get partial dependance
+    dot_data = tree.export_graphviz(clf.estimators_[0][0],
+                                    feature_names=df_train.columns,
+                                    class_names=['1','0'],
+                                    filled=True,
+                                    rounded=True,
+                                    proportion=True,
+                                    special_characters=True)
+    graph = pydotplus.graph_from_dot_data(dot_data)
+    graph.progs = {'dot': path_dot} #Like 'C:\Program Files (x86)\Graphviz2.38\bin\dot.exe'
+    
+    #For save image
+    #graph.write_png(r'G:\生データ\対象データ\出力\test_graph.png')
+    #Image(graph.create_png())
+    
+    #Plot and display
+    fig, axs = plot_partial_dependence(clf, df_train, list(df_train.columns), feature_names=list(df_train.columns))
+    fig.set_size_inches(12, 18)
+    plt.show()

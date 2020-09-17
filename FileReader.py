@@ -1,8 +1,11 @@
-#Get image in a folder
 import glob
 import cv2
 import numpy as np
 import pandas as pd
+import pickle
+import sys
+
+#Get image in a folder
 def read_img(path, sub_check=False, name_return=False):
     '''
     #Setting parameter(required)
@@ -59,7 +62,7 @@ def read_csv(path, encode, sub_check=False, target_name=None):
     #All csv combine
     for filepath in target_files:
         
-        #Exclude file not including targetname
+        #Exclude file not including target name
         filename = filepath.split('\\')[-1]
         if target_name!=None and target_name not in filename: continue        
     
@@ -73,3 +76,41 @@ def read_csv(path, encode, sub_check=False, target_name=None):
     merged_file = merged_file.reset_index(drop=True)
     
     return merged_file
+
+
+#Get pickle
+def read_pickle(path, sub_check=False, target_name=None):
+    #Get all csv file-path in a folder   
+    target_files = glob.glob(path+'\**\*.pickle', recursive=True) if sub_check else glob.glob(path+'\*.pickle')
+
+    #For return
+    target_pickle = None
+
+    #Explore all pickle
+    for filepath in target_files:
+        
+        #Not specify target name
+        if target_name == None:
+            if target_pickle==None:
+                with open(filepath, mode='rb') as fp:
+                    target_pickle = pickle.load(fp)
+            
+            #Upper 2 pickle must not exist        
+            else:
+                sys.exit('@read_pickle function: Specify "target_name" when pickle exists upper 2.')
+            
+        #Specify target name
+        else:
+            #Extract filename
+            filename = filepath.split('\\')[-1]
+            
+            #Get file including target name
+            if target_pickle==None and target_name in filename:
+                with open(filepath, mode='rb') as fp:
+                    target_pickle = pickle.load(fp)
+                
+                #Seconde file including target name must not exists
+                elif target_pickle!=None and target_name in filename:
+                    sys.exit('@read_pickle function: Files in that this target_name exists upper 2.')
+        
+    return target_pickle
