@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import pickle
 from sklearn.preprocessing import StandardScaler
-from FileReader import read_pickle
+from .FileReader import read_pickle
 
 #Compress dimention
 def dimensional_compressor(df, ignore_column=[], dimention=1, random_seed=None):

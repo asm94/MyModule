@@ -109,8 +109,8 @@ def read_pickle(path, sub_check=False, target_name=None):
                 with open(filepath, mode='rb') as fp:
                     target_pickle = pickle.load(fp)
                 
-                #Seconde file including target name must not exists
-                elif target_pickle!=None and target_name in filename:
-                    sys.exit('@read_pickle function: Files in that this target_name exists upper 2.')
+            #Seconde file including target name must not exists
+            elif target_pickle!=None and target_name in filename:
+                sys.exit('@read_pickle function: Files in that this target_name exists upper 2.')
         
     return target_pickle
