@@ -97,23 +97,23 @@ def get_shap_values(clf, x_train, y_train, x_test, pred_positive_only=False, pre
     
 
 ##Display partial dependance
-def display_PDP(clf, df_train, path_dot=None):
-    #Get partial dependance
-    dot_data = tree.export_graphviz(clf.estimators_[0][0],
-                                    feature_names=df_train.columns,
-                                    class_names=['1','0'],
-                                    filled=True,
-                                    rounded=True,
-                                    proportion=True,
-                                    special_characters=True)
-    graph = pydotplus.graph_from_dot_data(dot_data)
-    graph.progs = {'dot': path_dot} #Like 'C:\Program Files (x86)\Graphviz2.38\bin\dot.exe'
+def plot_PDP(fitted_clf, data, tgt_clm, ax=None):
+    data_temp = data.copy()
+    grid = np.linspace(np.percentile(data_temp.loc[:,tgt_clm], 0.1),
+                       np.percentile(data_temp.loc[:,tgt_clm], 99.5),
+                       50)
     
-    #For save image
-    #graph.write_png(r'G:\生データ\対象データ\出力\test_graph.png')
-    #Image(graph.create_png())
+    y_pred = np.zeros(len(grid))
+    for i, val in enumerate(grid):
+        data_temp.loc[:,tgt_clm] = val
+        y_pred[i] = np.average(fitted_clf.predict_proba(data_temp)[:,1])
+            
+    y_pred_adjust=[x-0.5 for x in y_pred]
     
-    #Plot and display
-    fig, axs = plot_partial_dependence(clf, df_train, list(df_train.columns), feature_names=list(df_train.columns))
-    fig.set_size_inches(12, 18)
-    plt.show()
+    ax.plot(grid, y_pred_adjust, '-', color = 'blue', linewidth = 2.5)
+    ax.set_xlim(min(grid), max(grid))
+    ax.set_ylim(min(y_pred_adjust)-abs(0.05*min(y_pred_adjust)), max(y_pred_adjust)+abs(0.05*max(y_pred_adjust)))
+
+    ax.set_xlabel(tgt_clm)
+    ax.set_ylabel('Partial Dependence')
+    
