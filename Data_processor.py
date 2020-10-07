@@ -7,24 +7,7 @@ from .FileReader import read_pickle
 
 #Compress dimention
 def dimensional_compressor(df, ignore_column=[], dimention=1, random_seed=None):
-    '''
-    Parameters
-    ----------
-    df : TYPE:pd.DataFrame
-        data.
-    ignore_column : TYPE:like array
-        Not compress columns. The default is [].
-    demention : TYPE:integer
-        Dimention after compression. The default is 1.
-    random_seed : TYPE:integer
-        Random seed. The default is None.
-
-    Returns
-    -------
-    TYPE:pd.DataFrame
-        Concatenation 'ignore_column' and compressed data.
-    '''
-    
+        
     #Divide the 'df' into target data and ignore data
     if len(ignore_column)>=1:
         target_df = df.drop(ignore_column, axis=1).reset_index(drop=True)
@@ -93,3 +76,103 @@ def generate_data_ctgan(raw_data, generate_sample=0, ex_column=[], epoch=50,
     samples = ctgan.sample(int(generate_sample))
     
     return samples
+
+#Adjust the number per period based on the specified attributes.
+def adjust_number(data, target_column, attribute, sub_attribute=None, period=10):
+    
+    #Returns without processing if the target dataset is empty or has only one attribute.
+    if len(data)==0 or len(set(data[attribute]))==1: return data
+    
+    #Set the upper and lower limits of the interval and the maximum value of the target column
+    lower = 0 if data[target_column].min() >= 0 else data[target_column].min()
+    upper = lower+period-1
+    maximum = data[target_column].max()
+        
+    #For storing adjusted data
+    data_adjusted = pd.DataFrame()
+    
+    #Adjustment of the number of data in the interval of each period (undersampling)
+    while lower <= maximum:
+        #Extraction of target section data
+        data_in_range = data[(lower<=data.loc[:,target_column]) & (data.loc[:,target_column]<=upper)]
+        
+        #If the data of the target section does not exist,
+        #or if the data of the target section does not contain all the attributes,
+        #then the next section
+        if len(data_in_range) == 0 or set(data[attribute]) != set(data_in_range[attribute]):
+            lower += period
+            upper += period           
+            continue
+        
+        #Get the number of data per attribute
+        counts = data_in_range[attribute].value_counts()
+        
+        #Undersampling per attribute
+        for att in counts.index:
+            
+            sample = pd.DataFrame()
+            #If there is no sub-attribute or the target attribute does not require undersampling
+            if sub_attribute == None or counts[att]==counts.min():
+                sample = data_in_range[data_in_range[attribute]==att].sample(n=counts.min(), random_state=42)
+                
+            #If there are sub-attributes, sample them as evenly as possible for each sub-attribute
+            elif sub_attribute != None and counts[att]!=counts.min():
+                data_att = data_in_range[data_in_range[attribute]==att]                
+                sub_counts = data_att[sub_attribute].value_counts()
+                
+                #Obtains the remaining number of samples
+                #when "the number of samples per sub-attribute divided equally by the number of sub-attribute types of the target attribute" is
+                #subtracted from the number of data per sub-attribute.
+                remaining = sub_counts - int(counts.min()/len(sub_counts))
+                                
+                #Calculates the number of remnants at the time of equal division
+                surplus = counts.min() % len(sub_counts)
+                
+                #Calculates shortage of sub-attributes that cannot be sampled due to the number of data
+                surplus += -1*remaining[remaining<0].sum()
+                                                
+                #Adjust the distribution of the number of samples
+                #until the total number of samples per sub-attribute reaches
+                #the number of target attribute samples
+                while surplus > 0:         
+                    
+                    #Set the number of sub-attributes that cannot be sampled anymore due to the number of data, to 0
+                    remaining[remaining<0] = 0
+                    
+                    #If the number of sub-attributes with more than 1 data remaining is
+                    #less than the remaining required number of samples
+                    if surplus > len(remaining[remaining>=1]):
+                        
+                        #Subtract the remaining required number of samples equally 
+                        #from a sub-attribute with more than 1 data remaining               
+                        remaining[remaining>=1] -= int(surplus/len(remaining[remaining>=1]))
+                
+                        #Calculate the remainder of the equitable distribution of the required number of samples
+                        surplus += surplus % len(remaining[remaining>=1])
+                        
+                        #Subtract the remainder that has been distributed
+                        surplus -= int(surplus/len(remaining[remaining>=1]))
+                                         
+                    else:
+                        temp_counts = data_adjusted[sub_attribute].value_counts()
+                        tgt_index = temp_counts[remaining.index].sort_values()[:surplus].index
+                        remaining[tgt_index] -= 1
+                        break
+                        
+                    #Calculates shortage of sub-attributes that cannot be sampled due to the number of data
+                    surplus += -1*remaining[remaining<0].sum()       
+                                     
+                #Sampling a specified number of sub-attributes
+                sub_sample = sub_counts - remaining
+                for s_att in sub_sample.index:
+                    sample = pd.concat([sample, data_att[data_att[sub_attribute]==s_att].sample(n=sub_sample[s_att], random_state=42)],
+                                       axis=0, ignore_index=True)
+             
+            #Concatenate adjusted data of a single attribute
+            data_adjusted = pd.concat([data_adjusted, sample],axis=0, ignore_index=True)
+        
+        #Section Update
+        lower += period
+        upper += period
+        
+    return data_adjusted

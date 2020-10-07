@@ -1,6 +1,6 @@
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras.layers import Input, Dense, Dropout, Flatten, Conv2D, MaxPooling2D, Lambda
+from tensorflow.keras.layers import Input, Dense, Dropout, Flatten, Conv2D, MaxPooling2D, Lambda, BatchNormalization
 from tensorflow.keras.models import Model
 from tensorflow.keras.applications import vgg16
 from tensorflow.keras.applications import efficientnet
@@ -54,7 +54,7 @@ def get_fitted_model(x_train,y_train,x_test=None,y_true=None,loss=None,optimizer
 
     ##Define model
     #Make new model
-    model = get_model(x_train.shape[1], x_train.shape[2], x_train.shape[3], np.unique(np.argmax(y_train,axis=1)).size)
+    model = get_model(x_train.shape, np.unique(np.argmax(y_train,axis=1)).size)
     print(model.summary())
 
     #Define 'loss' depending on class number(when 'loss' is not defined)
@@ -79,7 +79,7 @@ def get_fitted_model(x_train,y_train,x_test=None,y_true=None,loss=None,optimizer
     return model
     
 ##Define model architecture
-def get_model(input_height, input_width, input_channel, class_num):
+def get_model(shape, class_num):
     '''
     #Data parameter(required)
     input_height => Detail:Image height. Type:integer
@@ -91,10 +91,13 @@ def get_model(input_height, input_width, input_channel, class_num):
     part_trainable => Detail:Whether or not tunig part of model. Type:bool
     '''
     
-    inputs = Input(shape=(input_height, input_width, input_channel))
-    in_net = Lambda(vgg16.preprocess_input, name='preprocess')(inputs)
-
-    base_model = vgg16.VGG16(include_top=False, weights=None, input_tensor=in_net, pooling='avg')
+    shape = list(shape)
+    shape.pop(0)
+    shape = tuple(shape)
+    
+    inputs = Input(shape=shape)
+    #in_net = Lambda(vgg16.preprocess_input, name='preprocess')(inputs)
+    base_model = vgg16.VGG16(include_top=False, weights=None, input_tensor=inputs, pooling='avg')
     nw = base_model.output
        
     nw = Dense(512, activation='relu')(nw)
@@ -109,7 +112,7 @@ def get_model(input_height, input_width, input_channel, class_num):
     
     #for train part of model
     layer_names = [l.name for l in base_model.layers]
-    idx = layer_names.index('block3_conv1') #For VGG16        
+    idx = layer_names.index('block5_conv1') #For VGG16        
     #idx = layer_names.index('block7a_expand_conv') #For EfficientNetB7
     for layer in base_model.layers[:idx]:
         layer.trainable = False 
