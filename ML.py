@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 #Machine learning validation
 def fit_predict(clf, x_train, y_train, x_test, y_true, use_second_model=False, clf_sec=None, x_train_sec=pd.DataFrame(), y_train_sec=pd.DataFrame(),
-                mode='normal', use_weight=False, early_stop_num=None):
+                mode='normal', use_weight=False, early_stop_num=None, cat_feature=None):
     #Change the objective variable to integer type
     y_train = y_train.astype('int')
     y_true = y_true.astype('int')
@@ -33,7 +33,7 @@ def fit_predict(clf, x_train, y_train, x_test, y_true, use_second_model=False, c
         if use_second_model: w_train_sec = None
     
     #Training model
-    mode = 'normal' if mode!='xgb' else mode
+    mode = 'normal' if mode!='xgb' and mode!='catb' else mode
     #"Normal" mode
     if mode=='normal':
         clf.fit(x_train, y_train)
@@ -46,6 +46,13 @@ def fit_predict(clf, x_train, y_train, x_test, y_true, use_second_model=False, c
                 verbose=0)
         if use_second_model: clf_sec.fit(x_train_sec, y_train_sec, sample_weight=w_train_sec,
                                          early_stopping_rounds=early_stop_num, eval_set=eval_set, verbose=0)
+    #"catboost" mode
+    if mode=='catb':
+        eval_set = None if early_stop_num==None else (x_test, y_true)
+        clf.fit(x_train, y_train, sample_weight=w_train, early_stopping_rounds=early_stop_num,
+                eval_set=eval_set, cat_features=cat_feature, use_best_model=True, verbose=0)
+        if use_second_model: clf_sec.fit(x_train, y_train, sample_weight=w_train, early_stopping_rounds=early_stop_num,
+                                         eval_set=eval_set, cat_features=cat_feature, use_best_model=True, verbose=0)
     
     #Predict
     proba_both = clf.predict_proba(x_test)

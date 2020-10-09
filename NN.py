@@ -103,7 +103,11 @@ def get_model(shape, class_num):
     nw = Dense(512, activation='relu')(nw)
     nw = Dropout(.4)(nw)
     nw = Dense(512, activation='relu')(nw)
-    output = Dense(class_num, activation='softmax', name='output')(nw)        
+    
+    if class_num == 2:
+        output = Dense(class_num, activation='sigmoid', name='output')(nw)     
+    else:
+        output = Dense(class_num, activation='softmax', name='output')(nw)      
 
     model = Model(inputs=base_model.input, outputs=output)
 
@@ -115,7 +119,7 @@ def get_model(shape, class_num):
     idx = layer_names.index('block5_conv1') #For VGG16        
     #idx = layer_names.index('block7a_expand_conv') #For EfficientNetB7
     for layer in base_model.layers[:idx]:
-        layer.trainable = False 
+        layer.trainable = False
     
 
     return model
@@ -135,7 +139,7 @@ def plot_training_history(model_history, path_save_history=None, save_index=''):
     ax[1].set_ylabel('Loss')
     ax[1].legend()
 
-    #plt.show()
+    plt.show()
 
     if path_save_history!=None:
         fig.savefig(path_save_history+r'\history_data{0}.png'.format(save_index),dpi=100)

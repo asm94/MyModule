@@ -4,8 +4,7 @@ import numpy as np
 import pandas as pd
 import itertools
 from scipy import stats
-from mpl_toolkits.mplot3d import Axes3D   
-from sklearn.metrics import auc
+from mpl_toolkits.mplot3d import Axes3D
 
 #Plot confusion matrix
 def plot_confusion_matrix(cm, classes, title=None, cmap=plt.cm.Blues):
@@ -140,8 +139,13 @@ def plot_3D_scattaer(x,y,z, x_label=None,y_label=None,z_label=None, group=None,g
     return
  
 #Plot scatter as line gragh
-def plot_curve(axes, x, y, x_label=None, y_label=None, title=None, display=False):    
-    axes.plot(x, y, label='AUC = %.2f'%auc(x,y))
+def plot_curve(axes, x, y, x_label=None, y_label=None, title=None, display=False):
+    
+    xy = np.stack([np.array(x),np.array(y)])
+    data = pd.DataFrame(xy.T, columns=['x','y']).sort_values(['x','y'])
+    x, y = np.array(data['x']), np.array(data['y'])
+    
+    axes.plot(x, y, label='AUC = %.2f'%np.trapz(y,x))
     axes.legend(bbox_to_anchor=(1, 0), loc='lower right', borderaxespad=1, fontsize=8)
     axes.grid(color='gray')
     if x_label != None: axes.set_xlabel(x_label)
