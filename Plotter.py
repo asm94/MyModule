@@ -7,24 +7,20 @@ from scipy import stats
 from mpl_toolkits.mplot3d import Axes3D
 
 #Plot confusion matrix
-def plot_confusion_matrix(cm, classes, title=None, cmap=plt.cm.Blues):
-    sns.set_style("white")   
+def plot_confusion_matrix(matrix, lebales, title=None):
+    sns.set_style("white")
 
-    plt.imshow(cm, interpolation='nearest', cmap=cmap)
+    plt.imshow(matrix, interpolation='nearest', cmap=plt.cm.Blues)
     plt.title(title)
-    #plt.colorbar()
-    tick_marks = np.arange(len(classes))
-    plt.xticks(tick_marks, classes, rotation=45)
-    plt.yticks(tick_marks, classes)
+    plt.xticks(range(len(lebales)), lebales)
+    plt.yticks(range(len(lebales)), lebales)
 
-    thresh = cm.max() / 2.
-    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
-        plt.text(j, i, cm[i, j],
-                 horizontalalignment="center", fontsize=18,
-                 color="white" if cm[i, j] > thresh else "black")
+    for i, j in itertools.product(range(matrix.shape[0]), range(matrix.shape[1])):
+        plt.text(j, i, matrix[i, j], horizontalalignment="center", fontsize=18,
+                 color="white" if matrix[i, j] > matrix.max()/2 else "black")
 
-    plt.ylabel('True label')
-    plt.xlabel('Predicted label')
+    plt.ylabel('Actual')
+    plt.xlabel('Predicted')
     plt.tight_layout()
     plt.show()
     
@@ -157,4 +153,3 @@ def plot_curve(axes, x, y, x_label=None, y_label=None, title=None, display=False
     if display: plt.show()
 
     return
-    
