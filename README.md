@@ -9,6 +9,7 @@ Functions for Graphing.
 Used to visualize the confusion matrix. The "matrix" is must be square, and the number of "labels" must be equal to the length of one side of the square.
 #### Usage
 ```python
+import numpy as np
 cm = np.random.randint(0,100,(3,3))
 plot_confusion_matrix(cm, ['label1','label2','label3'], title='Matrix')
 ```
