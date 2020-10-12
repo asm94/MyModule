@@ -44,39 +44,40 @@ def plot_beeswarm(data, x_label=None, y_label=None, x_ticklabels=[]):
     return
     
 #Plot scatters
-def plot_2D_scatters(data, ticklabels=None, group=None, group_name=None, display_correlation=False):
+def plot_2D_scatters(data, ticklabels=None, group=None, display_correlation=False):
     sns.set_style("whitegrid")  
 
     data = pd.DataFrame(data, columns=ticklabels)
+    combination_list = list(itertools.combinations(range(0,len(data.columns)), 2))
     
     #Define gragh size
     vertical = 1
     horizonal = 1
     
     #Define gragh size like square if data number is upper 3
-    if len(data.columns)>=3:
-        divisor = sorted([i for i in range(1,len(data.columns)+1) if len(data.columns)%i == 0])
+    if len(combination_list)>=2:
+        divisor = sorted([i for i in range(1,len(combination_list)+1) if len(combination_list)%i == 0])  
         vertical = divisor[int(np.median(range(0,len(divisor))))]
-        horizonal = int(len(data.columns)/vertical)
+        horizonal = int(len(combination_list)/vertical)
 
     fig, ax = plt.subplots(vertical, horizonal, figsize=(5*horizonal, 4*vertical), squeeze=False)
     
-    for i, pair in enumerate(itertools.combinations(range(0,len(data.columns)), 2)):    
-        hor_idx = i%len(data.columns)
-        ver_idx = int(i/len(data.columns))
+    for i, pair in enumerate(combination_list): 
+        hor_idx = i%horizonal
+        ver_idx = i%vertical
         
         if not group is None:
-            for i in sorted(group.unique()):
-                sns.scatterplot(x=data.iloc[:,pair[0]].loc[(group==i)],
-                                y=data.iloc[:,pair[1]].loc[(group==i)],
-                                label=group_name[i],ax=ax[ver_idx][hor_idx])
+            for name in sorted(group.unique()):
+                sns.scatterplot(x=data.iloc[:,pair[0]].loc[(group==name)],
+                                y=data.iloc[:,pair[1]].loc[(group==name)],
+                                label=name, ax=ax[ver_idx][hor_idx])
                 ax[ver_idx][hor_idx].legend()
         else:
             sns.scatterplot(x=data.iloc[:,pair[0]], y=data.iloc[:,pair[1]], ax=ax[ver_idx][hor_idx])
         
         if display_correlation:
             corr = stats.pearsonr(data.iloc[:,pair[0]], data.iloc[:,pair[1]])[0]
-            ax[ver_idx][hor_idx].text(0.95, 0.90, f'R={round(corr,3)}', size=10, transform=ax[ver_idx][hor_idx].transAxes,
+            ax[ver_idx][hor_idx].text(0.98, 1.03, f'R={round(corr,3)}', size=9, transform=ax[ver_idx][hor_idx].transAxes,
                                       horizontalalignment = 'right', bbox=dict(facecolor='white', edgecolor='black'))
      
     plt.show()
