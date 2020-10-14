@@ -47,9 +47,9 @@ def plot_beeswarm(data, x_label=None, y_label=None, x_ticklabels=[]):
 def plot_2D_scatters(data, ticklabels=None, group=None, display_correlation=False):
     sns.set_style("whitegrid")  
 
-    data = pd.DataFrame(data, columns=ticklabels)
+    data = pd.DataFrame(np.array(data), columns=ticklabels)
     combination_list = list(itertools.combinations(range(0,len(data.columns)), 2))
-    
+        
     #Define gragh size
     vertical = 1
     horizonal = 1

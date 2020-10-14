@@ -1,11 +1,13 @@
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras.layers import Input, Dense, Dropout, Flatten, Conv2D, MaxPooling2D, Lambda, BatchNormalization
+from tensorflow.keras.initializers import Constant
+from tensorflow.keras.layers import Input, Dense, Dropout, Flatten, Conv2D, MaxPooling2D, Lambda, BatchNormalization, Activation, MaxPool2D
 from tensorflow.keras.models import Model
 from tensorflow.keras.applications import vgg16
 from tensorflow.keras.applications import efficientnet
 import numpy as np
 import matplotlib.pyplot as plt
+
 def get_fitted_model(x_train,y_train,x_test=None,y_true=None,loss=None,optimizer=keras.optimizers.Adam(),
                      training_epoch=10,batch_size=8,class_weight=None,metrics=['accuracy'],callbacks=None,
                      display_training=False,plot_history=False,path_save_history=None,save_index=''):
@@ -95,7 +97,7 @@ def get_model(shape, class_num):
     shape.pop(0)
     shape = tuple(shape)
     
-    inputs = Input(shape=shape)
+    '''inputs = Input(shape=shape)
     #in_net = Lambda(vgg16.preprocess_input, name='preprocess')(inputs)
     base_model = vgg16.VGG16(include_top=False, weights=None, input_tensor=inputs, pooling='avg')
     nw = base_model.output
@@ -108,9 +110,8 @@ def get_model(shape, class_num):
         output = Dense(class_num, activation='sigmoid', name='output')(nw)     
     else:
         output = Dense(class_num, activation='softmax', name='output')(nw)      
-
+    
     model = Model(inputs=base_model.input, outputs=output)
-
     
     base_model.trainable = True
     
@@ -120,9 +121,54 @@ def get_model(shape, class_num):
     #idx = layer_names.index('block7a_expand_conv') #For EfficientNetB7
     for layer in base_model.layers[:idx]:
         layer.trainable = False
-    
+    '''
 
-    return model
+    return multitask_cnn(shape, class_num)
+
+def multitask_cnn(data_shape, class_num):
+    # n^2x1
+    input_tensor = Input(shape=data_shape, name="thyroid_input")
+    # n^2x8
+    x = Conv2D(8, (3, 3), padding="same", activation="relu")(input_tensor)
+    # ((n/2)^2)x8
+    x = MaxPool2D((2, 2), strides=(2, 2))(x)
+    # ((n/2)^2)x12
+    x = Conv2D(12, (3, 3), padding="same", activation="relu")(x)
+    # ((n/4)^2)x12
+    x = MaxPool2D((2, 2), strides=(2, 2))(x)
+    # ((n/4)^2)x16
+    x = Conv2D(16, (3, 3), padding="same", activation="relu")(x)
+    # ((n/8)^2)x16
+    x = MaxPool2D((2, 2), strides=(2, 2))(x)
+    # ((n/8)^2)x24
+    x = Conv2D(24, (3, 3), padding="same", activation="relu")(x)
+    # ((n/16)^2)x24
+    x = MaxPool2D((2, 2), strides=(2, 2))(x)
+    # ((n/16)^2)x32
+    x = Conv2D(32, (3, 3), padding="same", activation="relu")(x)
+    # ((n/32)^2)x32
+    x = MaxPool2D((2, 2), strides=(2, 2))(x)
+    # ((n/32)^2)x48
+    x = Conv2D(48, (3, 3), padding="same", activation="relu")(x)
+    # ((n/32)^2)x48
+    x = Dropout(0.5)(x)
+
+    # ((n/160)^2)×1
+    y_cancer = Conv2D(
+        filters=1,
+        kernel_size=(5, 5),
+        kernel_initializer="glorot_normal",
+        bias_initializer=Constant(value=-0.9),
+    )(x)
+    y_cancer = Flatten()(y_cancer)
+    y_cancer = Dense(class_num, activation='sigmoid', name='output')(y_cancer)
+    #y_cancer = Activation("sigmoid", name="out_cancer")(y_cancer)
+
+    return Model(
+        inputs=[input_tensor],
+        outputs=[y_cancer],
+    )
+
 
 ##Plot and save trainig history
 def plot_training_history(model_history, path_save_history=None, save_index=''):
