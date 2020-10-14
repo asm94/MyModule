@@ -1,4 +1,4 @@
-#Plotter.py
+# Plotter.py
 ## plot_confusion_matrix(matrix, lebales, title=None)
 Used to visualize the confusion matrix. The "matrix" is must be square, and the number of "labels" must be equal to the length of one side of the square.
 ### Usage
