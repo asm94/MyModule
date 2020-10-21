@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 #Machine learning validation
 def fit_predict(clf, x_train, y_train, x_test, y_true, use_second_model=False, clf_sec=None, x_train_sec=pd.DataFrame(), y_train_sec=pd.DataFrame(),
-                mode='normal', use_weight=False, early_stop_num=None, cat_feature=None):
+                mode='normal', use_weight=False, early_stop_num=None, cat_feature=None, normal_class=None):
     #Change the objective variable to integer type
     y_train = y_train.astype('int')
     y_true = y_true.astype('int')
@@ -32,30 +32,45 @@ def fit_predict(clf, x_train, y_train, x_test, y_true, use_second_model=False, c
         w_train = None
         if use_second_model: w_train_sec = None
     
-    #Training model
-    mode = 'normal' if mode!='xgb' and mode!='catb' else mode
-    #"Normal" mode
-    if mode=='normal':
-        clf.fit(x_train, y_train)
-        if use_second_model: clf_sec.fit(x_train_sec, y_train_sec)
+    #one class mode
+    if mode=='lof' or mode=='ocsvm':
+        if normal_class == None:
+            count = y_train.value_counts()    
+            normal_class = count[count==count.max()].iloc[0].index
+            
+        tgt_train = x_train[y_train==normal_class]
+        clf.fit(tgt_train)
+        proba = clf.decision_function(x_test)
+        
+        if use_second_model:
+            tgt_train_sec = x_train_sec[y_train_sec==normal_class]
+            clf_sec.fit(tgt_train_sec) 
+            proba_sec = clf_sec.decision_function(x_test)
+            
+        return proba if not use_second_model else np.stack([proba, proba_sec])
         
     #"XGBoost" mode
-    if mode=='xgb':
+    elif mode=='xgb':
         eval_set = None if early_stop_num==None else [(x_test, y_true)]
         clf.fit(x_train, y_train, sample_weight=w_train, early_stopping_rounds=early_stop_num, eval_set=eval_set, 
                 verbose=0)
         if use_second_model: clf_sec.fit(x_train_sec, y_train_sec, sample_weight=w_train_sec,
                                          early_stopping_rounds=early_stop_num, eval_set=eval_set, verbose=0)
     #"catboost" mode
-    if mode=='catb':
+    elif mode=='catb':
         eval_set = None if early_stop_num==None else (x_test, y_true)
         clf.fit(x_train, y_train, sample_weight=w_train, early_stopping_rounds=early_stop_num,
                 eval_set=eval_set, cat_features=cat_feature, use_best_model=True, verbose=0)
         if use_second_model: clf_sec.fit(x_train, y_train, sample_weight=w_train, early_stopping_rounds=early_stop_num,
                                          eval_set=eval_set, cat_features=cat_feature, use_best_model=True, verbose=0)
     
+    #other mode
+    else:
+        clf.fit(x_train, y_train)
+        if use_second_model: clf_sec.fit(x_train_sec, y_train_sec)
+    
     #Predict
-    proba_both = clf.predict_proba(x_test)
+    proba_both = clf.predict_proba(x_test)    
     if use_second_model: proba_both_sec = clf_sec.predict_proba(x_test)
     
     

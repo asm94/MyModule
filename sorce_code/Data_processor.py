@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import pickle
 from sklearn.preprocessing import StandardScaler
+from ctgan import CTGANSynthesizer
 from .FileReader import read_pickle
 
 #Compress dimention
@@ -47,7 +48,6 @@ def data_to_std(data, ex_clm=[]):
     return data
 
 #Generate data by CTGAN
-from ctgan import CTGANSynthesizer
 def generate_data_ctgan(raw_data, generate_sample=0, ex_column=[], epoch=50,
                         save_path=None, model_path=None, option_word=''):
     
@@ -76,6 +76,7 @@ def generate_data_ctgan(raw_data, generate_sample=0, ex_column=[], epoch=50,
     samples = ctgan.sample(int(generate_sample))
     
     return samples
+
 
 #Adjust the number per period based on the specified attributes.
 def adjust_number(data, target_column, attribute, sub_attribute=None, period=10):
