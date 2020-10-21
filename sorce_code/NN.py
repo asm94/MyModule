@@ -1,54 +1,191 @@
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.initializers import Constant
-from tensorflow.keras.layers import Input, Dense, Dropout, Flatten, Conv2D, MaxPooling2D, Lambda, BatchNormalization, Activation, MaxPool2D
+from tensorflow.keras.layers import Input, Dense, Dropout, Flatten, Conv2D, MaxPooling2D, Lambda, BatchNormalization, Activation, MaxPool2D, DepthwiseConv2D
 from tensorflow.keras.models import Model
 from tensorflow.keras.applications import vgg16
 from tensorflow.keras.applications import efficientnet
+
+import torch
+from torch import optim
+
 import numpy as np
 import matplotlib.pyplot as plt
+import random
+
+from ctgan import CTGANSynthesizer
+from ctgan.conditional import ConditionalGenerator
+from ctgan.models import Discriminator, Generator
+from ctgan.sampler import Sampler
+from ctgan.transformer import DataTransformer
+
+class uCTGANSynthesizer(CTGANSynthesizer):
+    def __init__(self, embedding_dim=128, gen_dim=(256, 256), dis_dim=(256, 256), l2scale=1e-6, batch_size=500):
+        super().__init__(embedding_dim=embedding_dim, gen_dim=gen_dim, dis_dim=dis_dim,
+                                                l2scale=l2scale, batch_size=batch_size)
+    def to(self, device):
+        self.device = device
+        return self
+            
+    def fit(self, train_data, discrete_columns=tuple(), epochs=300, log_frequency=True, verbose=1):
+        
+        self.transformer = DataTransformer()
+        self.transformer.fit(train_data, discrete_columns)
+        train_data = self.transformer.transform(train_data)
+
+        data_sampler = Sampler(train_data, self.transformer.output_info)
+
+        data_dim = self.transformer.output_dimensions
+        self.cond_generator = ConditionalGenerator(
+            train_data,
+            self.transformer.output_info,
+            log_frequency
+        )
+
+        self.generator = Generator(
+            self.embedding_dim + self.cond_generator.n_opt,
+            self.gen_dim,
+            data_dim
+        ).to(self.device)
+
+        discriminator = Discriminator(
+            data_dim + self.cond_generator.n_opt,
+            self.dis_dim
+        ).to(self.device)
+
+        optimizerG = optim.Adam(
+            self.generator.parameters(), lr=2e-4, betas=(0.5, 0.9),
+            weight_decay=self.l2scale
+        )
+        optimizerD = optim.Adam(discriminator.parameters(), lr=2e-4, betas=(0.5, 0.9))
+
+        assert self.batch_size % 2 == 0
+        mean = torch.zeros(self.batch_size, self.embedding_dim, device=self.device)
+        std = mean + 1
+
+        steps_per_epoch = max(len(train_data) // self.batch_size, 1)
+        for i in range(epochs):
+            for id_ in range(steps_per_epoch):
+                fakez = torch.normal(mean=mean, std=std)
+
+                condvec = self.cond_generator.sample(self.batch_size)
+                if condvec is None:
+                    c1, m1, col, opt = None, None, None, None
+                    real = data_sampler.sample(self.batch_size, col, opt)
+                else:
+                    c1, m1, col, opt = condvec
+                    c1 = torch.from_numpy(c1).to(self.device)
+                    m1 = torch.from_numpy(m1).to(self.device)
+                    fakez = torch.cat([fakez, c1], dim=1)
+
+                    perm = np.arange(self.batch_size)
+                    np.random.shuffle(perm)
+                    real = data_sampler.sample(self.batch_size, col[perm], opt[perm])
+                    c2 = c1[perm]
+
+                fake = self.generator(fakez)
+                fakeact = self._apply_activate(fake)
+
+                real = torch.from_numpy(real.astype('float32')).to(self.device)
+
+                if c1 is not None:
+                    fake_cat = torch.cat([fakeact, c1], dim=1)
+                    real_cat = torch.cat([real, c2], dim=1)
+                else:
+                    real_cat = real
+                    fake_cat = fake
+
+                y_fake = discriminator(fake_cat)
+                y_real = discriminator(real_cat)
+
+                pen = discriminator.calc_gradient_penalty(real_cat, fake_cat, self.device)
+                loss_d = -(torch.mean(y_real) - torch.mean(y_fake))
+
+                optimizerD.zero_grad()
+                pen.backward(retain_graph=True)
+                loss_d.backward()
+                optimizerD.step()
+
+                fakez = torch.normal(mean=mean, std=std)
+                condvec = self.cond_generator.sample(self.batch_size)
+
+                if condvec is None:
+                    c1, m1, col, opt = None, None, None, None
+                else:
+                    c1, m1, col, opt = condvec
+                    c1 = torch.from_numpy(c1).to(self.device)
+                    m1 = torch.from_numpy(m1).to(self.device)
+                    fakez = torch.cat([fakez, c1], dim=1)
+
+                fake = self.generator(fakez)
+                fakeact = self._apply_activate(fake)
+
+                if c1 is not None:
+                    y_fake = discriminator(torch.cat([fakeact, c1], dim=1))
+                else:
+                    y_fake = discriminator(fakeact)
+
+                if condvec is None:
+                    cross_entropy = 0
+                else:
+                    cross_entropy = self._cond_loss(fake, c1, m1)
+
+                loss_g = -torch.mean(y_fake) + cross_entropy
+
+                optimizerG.zero_grad()
+                loss_g.backward()
+                optimizerG.step()
+            
+            if verbose>0:
+                if i==0 or (i+1)%verbose==0:
+                    print("Epoch %d, Loss G: %.4f, Loss D: %.4f" %
+                          (i + 1, loss_g.detach().cpu(), loss_d.detach().cpu()),
+                          flush=True)
+                    
+        torch.cuda.empty_cache()
+            
+            
+    def discriminate(self, train_data, discrete_columns=tuple(), log_frequency=True):
+        
+        real = torch.from_numpy(np.array(train_data).astype('float32')).to(self.device)
+        return np.squeeze(self.discriminator(real).to('cpu').detach().numpy().copy())
+        
+        assert self.batch_size % 2 == 0
+        
+        index_train = random.sample(list(range(len(train_data))), len(train_data))
+        batch_idx_train = [index_train[i:i+self.batch_size] for i in range(0, len(index_train), self.batch_size)]
+             
+        proba_list = []
+        for idx in batch_idx_train: 
+            
+            condvec = self.cond_generator.sample(len(idx))
+            if condvec is None:
+                c1, m1, col, opt = None, None, None, None
+                real = train_data[idx]
+            else:
+                c1, m1, col, opt = condvec
+                c1 = torch.from_numpy(c1).to(self.device)
+
+                perm = np.arange(len(idx))
+                np.random.shuffle(perm)
+                real = train_data[idx]
+                c2 = c1[perm]
+             
+            real = torch.from_numpy(real.astype('float32')).to(self.device)
+            
+            if c1 is not None: real_cat = torch.cat([real, c2], dim=1)
+            else: real_cat = real
+            y_real = self.discriminator(real_cat)
+            
+            proba_list.append(y_real.to('cpu').detach().numpy().copy())
+         
+        return np.squeeze(np.concatenate(proba_list)) 
+        
 
 def get_fitted_model(x_train,y_train,x_test=None,y_true=None,loss=None,optimizer=keras.optimizers.Adam(),
                      training_epoch=10,batch_size=8,class_weight=None,metrics=['accuracy'],callbacks=None,
                      display_training=False,plot_history=False,path_save_history=None,save_index=''):
-    '''
-    #Data parameter(required)
-    x_train => Detail:Image data for train (only resized).
-               Type:numpy.ndarray(data_number,image_width,image_height,channel)
-    y_train => Detail:Target label for train.
-               Type:numpy.ndarray(data_number,onehot_label)
     
-    #Data parameter(not absolutely necessary)
-    x_test => Detail:Image data for test (only resized).
-              Type  :numpy.ndarray(data_number,image_width,image_height,channel)
-    y_true => Detail:Target label for test.
-              Type  :numpy.ndarray(data_number,onehot_label)
-
-    #Setting parameter(not absolutely necessary) 
-    loss => Detail:Loss function.
-            Type  :str or keras.losses
-    optimizer => Detail:Optimizer.
-                 Type  :str or keras.optimizers
-    metrics => Detail:Metrics for model training.
-               Type  :list[function]
-    callbacks => Detail:Callback function for model training.
-                 Type  :list[function] 
-    display_training => Detail:Whether or not display training status.
-                        Type  :bool
-    training_epoch => Detail:Training epoch.
-                      Type  :integer
-    batch_size => Detail:Image number is used by 1 epoch.
-                  Type  :integer
-    class_weight => Detail:Weight is considered by model training.
-                    Type  :dict
-    plot_history => Detail:Whether or not plot training history.
-                    Type  :bool
-    path_save_history => Detail:Path of training history as image.
-                         Type  :string   
-    save_index => Detail:Whether or not plot training history.
-                  Type  :numeric or string
-    '''
-
     ##check keras backend image_data_format
     if keras.backend.image_data_format()=='channels_first':
         x_train = x_train.transpose((0,3,1,2))
@@ -79,77 +216,49 @@ def get_fitted_model(x_train,y_train,x_test=None,y_true=None,loss=None,optimizer
         plot_training_history(model_history, path_save_history=path_save_history, save_index=save_index)
 
     return model
-    
+   
+ 
 ##Define model architecture
-def get_model(shape, class_num):
-    '''
-    #Data parameter(required)
-    input_height => Detail:Image height. Type:integer
-    input_width => Detail:Image width. Type:integer
-    input_channel => Detail:Image channel. Type:integer
-    class_num => Detail:Output class number. Type:integer
-    
-    #Setting parameter
-    part_trainable => Detail:Whether or not tunig part of model. Type:bool
-    '''
-    
+def get_model(shape, class_num):    
     shape = list(shape)
     shape.pop(0)
-    shape = tuple(shape)
-    
-    '''inputs = Input(shape=shape)
-    #in_net = Lambda(vgg16.preprocess_input, name='preprocess')(inputs)
-    base_model = vgg16.VGG16(include_top=False, weights=None, input_tensor=inputs, pooling='avg')
-    nw = base_model.output
-       
-    nw = Dense(512, activation='relu')(nw)
-    nw = Dropout(.4)(nw)
-    nw = Dense(512, activation='relu')(nw)
-    
-    if class_num == 2:
-        output = Dense(class_num, activation='sigmoid', name='output')(nw)     
-    else:
-        output = Dense(class_num, activation='softmax', name='output')(nw)      
-    
-    model = Model(inputs=base_model.input, outputs=output)
-    
-    base_model.trainable = True
-    
-    #for train part of model
-    layer_names = [l.name for l in base_model.layers]
-    idx = layer_names.index('block5_conv1') #For VGG16        
-    #idx = layer_names.index('block7a_expand_conv') #For EfficientNetB7
-    for layer in base_model.layers[:idx]:
-        layer.trainable = False
-    '''
+    shape = tuple(shape)    
 
-    return multitask_cnn(shape, class_num)
+    return multitask_cnn(shape, class_num)#, activation=FReLU)
 
-def multitask_cnn(data_shape, class_num):
+
+#https://github.com/MaciejMazurowski/thyroid-us
+def multitask_cnn(data_shape, class_num, activation=Activation('relu')):
     # n^2x1
     input_tensor = Input(shape=data_shape, name="thyroid_input")
     # n^2x8
-    x = Conv2D(8, (3, 3), padding="same", activation="relu")(input_tensor)
+    x = Conv2D(8, (3, 3), padding="same")(input_tensor)
+    x = activation(x)
     # ((n/2)^2)x8
     x = MaxPool2D((2, 2), strides=(2, 2))(x)
     # ((n/2)^2)x12
-    x = Conv2D(12, (3, 3), padding="same", activation="relu")(x)
+    x = Conv2D(12, (3, 3), padding="same")(x)
+    x = activation(x)
     # ((n/4)^2)x12
     x = MaxPool2D((2, 2), strides=(2, 2))(x)
     # ((n/4)^2)x16
-    x = Conv2D(16, (3, 3), padding="same", activation="relu")(x)
+    x = Conv2D(16, (3, 3), padding="same")(x)
+    x = activation(x)
     # ((n/8)^2)x16
     x = MaxPool2D((2, 2), strides=(2, 2))(x)
     # ((n/8)^2)x24
-    x = Conv2D(24, (3, 3), padding="same", activation="relu")(x)
+    x = Conv2D(24, (3, 3), padding="same")(x)
+    x = activation(x)
     # ((n/16)^2)x24
     x = MaxPool2D((2, 2), strides=(2, 2))(x)
     # ((n/16)^2)x32
-    x = Conv2D(32, (3, 3), padding="same", activation="relu")(x)
+    x = Conv2D(32, (3, 3), padding="same")(x)
+    x = activation(x)
     # ((n/32)^2)x32
     x = MaxPool2D((2, 2), strides=(2, 2))(x)
     # ((n/32)^2)x48
-    x = Conv2D(48, (3, 3), padding="same", activation="relu")(x)
+    x = Conv2D(48, (3, 3), padding="same")(x)
+    x = activation(x)
     # ((n/32)^2)x48
     x = Dropout(0.5)(x)
 
@@ -168,6 +277,19 @@ def multitask_cnn(data_shape, class_num):
         inputs=[input_tensor],
         outputs=[y_cancer],
     )
+
+#FReLU
+#https://qiita.com/rabbitcaptain/items/26304b5a5e401db5bae2
+def FReLU(inputs, kernel_size = 3):
+    
+    #T(x)
+    x = DepthwiseConv2D(kernel_size, strides=(1, 1), padding='same')(inputs)
+    x = BatchNormalization()(x)
+    
+    #max(x, T(x))
+    x = tf.maximum(inputs, x)
+    
+    return x
 
 
 ##Plot and save trainig history
