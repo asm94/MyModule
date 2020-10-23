@@ -224,8 +224,46 @@ def get_model(shape, class_num):
     shape.pop(0)
     shape = tuple(shape)    
 
-    return multitask_cnn(shape, class_num)#, activation=FReLU)
+    #model = multitask_cnn(shape, class_num)#, activation=FReLU)
+    model = VGG16(shape, class_num)
 
+    return model
+
+#VGG16
+def VGG16(shape, class_num):
+    base_model = vgg16.VGG16(include_top=False, weights=None, pooling='avg', input_tensor=Input(shape=shape)) 
+    nw = base_model.output
+    
+    nw = Dense(512, activation='relu')(nw)
+    nw = Dropout(.4)(nw)
+    nw = Dense(512, activation='relu')(nw)
+    
+    if class_num<=2:
+        output = Dense(class_num, activation='sigmoid', name='output')(nw)     
+    else:
+        output = Dense(class_num, activation='softmax', name='output')(nw)  
+            
+    base_model.trainable = True
+        
+    return Model(inputs=base_model.input, outputs=output)
+
+#EfficientNet
+def EfficientNet(shape, class_num):
+    base_model = efficientnet.EfficientNetB0(include_top=False, weights=None, pooling='avg', input_tensor=Input(shape=shape)) 
+    nw = base_model.output
+    
+    nw = Dense(512, activation='relu')(nw)
+    nw = Dropout(.4)(nw)
+    nw = Dense(512, activation='relu')(nw)
+    
+    if class_num<=2:
+        output = Dense(class_num, activation='sigmoid', name='output')(nw)     
+    else:
+        output = Dense(class_num, activation='softmax', name='output')(nw)  
+            
+    base_model.trainable = True
+        
+    return Model(inputs=base_model.input, outputs=output)
 
 #https://github.com/MaciejMazurowski/thyroid-us
 def multitask_cnn(data_shape, class_num, activation=Activation('relu')):
@@ -311,3 +349,4 @@ def plot_training_history(model_history, path_save_history=None, save_index=''):
 
     if path_save_history!=None:
         fig.savefig(path_save_history+r'\history_data{0}.png'.format(save_index),dpi=100)
+        
