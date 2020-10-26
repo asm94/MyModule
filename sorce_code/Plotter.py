@@ -60,7 +60,7 @@ def plot_2D_scatters(data, ticklabels=None, group=None, display_correlation=Fals
         vertical = divisor[int(np.median(range(0,len(divisor))))]
         horizonal = int(len(combination_list)/vertical)
 
-    fig, ax = plt.subplots(vertical, horizonal, figsize=(5*horizonal, 4*vertical), squeeze=False)
+    fig, ax = plt.subplots(vertical, horizonal, figsize=(4*horizonal, 4*vertical), squeeze=False)
     
     for i, pair in enumerate(combination_list): 
         hor_idx = i%horizonal
@@ -74,6 +74,9 @@ def plot_2D_scatters(data, ticklabels=None, group=None, display_correlation=Fals
                 ax[ver_idx][hor_idx].legend()
         else:
             sns.scatterplot(x=data.iloc[:,pair[0]], y=data.iloc[:,pair[1]], ax=ax[ver_idx][hor_idx])
+            
+        ax[ver_idx][hor_idx].set_xlim(0.0,1.0)
+        ax[ver_idx][hor_idx].set_ylim(0.0,1.0)
         
         if display_correlation:
             corr = stats.pearsonr(data.iloc[:,pair[0]], data.iloc[:,pair[1]])[0]

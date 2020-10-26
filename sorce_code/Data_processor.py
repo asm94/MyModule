@@ -90,7 +90,7 @@ def adjust_number(data, target_column, attribute, sub_attribute=None, period=10)
     maximum = data[target_column].max()
         
     #For storing adjusted data
-    data_adjusted = pd.DataFrame()
+    data_adjusted = pd.DataFrame(columns=data.columns)
     
     #Adjustment of the number of data in the interval of each period (undersampling)
     while lower <= maximum:
@@ -110,7 +110,7 @@ def adjust_number(data, target_column, attribute, sub_attribute=None, period=10)
         
         #Undersampling per attribute
         for att in counts.index:
-            
+                        
             sample = pd.DataFrame()
             #If there is no sub-attribute or the target attribute does not require undersampling
             if sub_attribute == None or counts[att]==counts.min():
@@ -139,7 +139,7 @@ def adjust_number(data, target_column, attribute, sub_attribute=None, period=10)
                     
                     #Set the number of sub-attributes that cannot be sampled anymore due to the number of data, to 0
                     remaining[remaining<0] = 0
-                    
+                                        
                     #If the number of sub-attributes with more than 1 data remaining is
                     #less than the remaining required number of samples
                     if surplus > len(remaining[remaining>=1]):
@@ -171,7 +171,7 @@ def adjust_number(data, target_column, attribute, sub_attribute=None, period=10)
              
             #Concatenate adjusted data of a single attribute
             data_adjusted = pd.concat([data_adjusted, sample],axis=0, ignore_index=True)
-        
+           
         #Section Update
         lower += period
         upper += period
