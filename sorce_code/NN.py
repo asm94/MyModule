@@ -19,168 +19,6 @@ from ctgan.models import Discriminator, Generator
 from ctgan.sampler import Sampler
 from ctgan.transformer import DataTransformer
 
-class uCTGANSynthesizer(CTGANSynthesizer):
-    def __init__(self, embedding_dim=128, gen_dim=(256, 256), dis_dim=(256, 256), l2scale=1e-6, batch_size=500):
-        super().__init__(embedding_dim=embedding_dim, gen_dim=gen_dim, dis_dim=dis_dim,
-                                                l2scale=l2scale, batch_size=batch_size)
-    def to(self, device):
-        self.device = device
-        return self
-            
-    def fit(self, train_data, discrete_columns=tuple(), epochs=300, log_frequency=True, verbose=1):
-        
-        self.transformer = DataTransformer()
-        self.transformer.fit(train_data, discrete_columns)
-        train_data = self.transformer.transform(train_data)
-
-        data_sampler = Sampler(train_data, self.transformer.output_info)
-
-        data_dim = self.transformer.output_dimensions
-        self.cond_generator = ConditionalGenerator(
-            train_data,
-            self.transformer.output_info,
-            log_frequency
-        )
-
-        self.generator = Generator(
-            self.embedding_dim + self.cond_generator.n_opt,
-            self.gen_dim,
-            data_dim
-        ).to(self.device)
-
-        discriminator = Discriminator(
-            data_dim + self.cond_generator.n_opt,
-            self.dis_dim
-        ).to(self.device)
-
-        optimizerG = optim.Adam(
-            self.generator.parameters(), lr=2e-4, betas=(0.5, 0.9),
-            weight_decay=self.l2scale
-        )
-        optimizerD = optim.Adam(discriminator.parameters(), lr=2e-4, betas=(0.5, 0.9))
-
-        assert self.batch_size % 2 == 0
-        mean = torch.zeros(self.batch_size, self.embedding_dim, device=self.device)
-        std = mean + 1
-
-        steps_per_epoch = max(len(train_data) // self.batch_size, 1)
-        for i in range(epochs):
-            for id_ in range(steps_per_epoch):
-                fakez = torch.normal(mean=mean, std=std)
-
-                condvec = self.cond_generator.sample(self.batch_size)
-                if condvec is None:
-                    c1, m1, col, opt = None, None, None, None
-                    real = data_sampler.sample(self.batch_size, col, opt)
-                else:
-                    c1, m1, col, opt = condvec
-                    c1 = torch.from_numpy(c1).to(self.device)
-                    m1 = torch.from_numpy(m1).to(self.device)
-                    fakez = torch.cat([fakez, c1], dim=1)
-
-                    perm = np.arange(self.batch_size)
-                    np.random.shuffle(perm)
-                    real = data_sampler.sample(self.batch_size, col[perm], opt[perm])
-                    c2 = c1[perm]
-
-                fake = self.generator(fakez)
-                fakeact = self._apply_activate(fake)
-
-                real = torch.from_numpy(real.astype('float32')).to(self.device)
-
-                if c1 is not None:
-                    fake_cat = torch.cat([fakeact, c1], dim=1)
-                    real_cat = torch.cat([real, c2], dim=1)
-                else:
-                    real_cat = real
-                    fake_cat = fake
-
-                y_fake = discriminator(fake_cat)
-                y_real = discriminator(real_cat)
-
-                pen = discriminator.calc_gradient_penalty(real_cat, fake_cat, self.device)
-                loss_d = -(torch.mean(y_real) - torch.mean(y_fake))
-
-                optimizerD.zero_grad()
-                pen.backward(retain_graph=True)
-                loss_d.backward()
-                optimizerD.step()
-
-                fakez = torch.normal(mean=mean, std=std)
-                condvec = self.cond_generator.sample(self.batch_size)
-
-                if condvec is None:
-                    c1, m1, col, opt = None, None, None, None
-                else:
-                    c1, m1, col, opt = condvec
-                    c1 = torch.from_numpy(c1).to(self.device)
-                    m1 = torch.from_numpy(m1).to(self.device)
-                    fakez = torch.cat([fakez, c1], dim=1)
-
-                fake = self.generator(fakez)
-                fakeact = self._apply_activate(fake)
-
-                if c1 is not None:
-                    y_fake = discriminator(torch.cat([fakeact, c1], dim=1))
-                else:
-                    y_fake = discriminator(fakeact)
-
-                if condvec is None:
-                    cross_entropy = 0
-                else:
-                    cross_entropy = self._cond_loss(fake, c1, m1)
-
-                loss_g = -torch.mean(y_fake) + cross_entropy
-
-                optimizerG.zero_grad()
-                loss_g.backward()
-                optimizerG.step()
-            
-            if verbose>0:
-                if i==0 or (i+1)%verbose==0:
-                    print("Epoch %d, Loss G: %.4f, Loss D: %.4f" %
-                          (i + 1, loss_g.detach().cpu(), loss_d.detach().cpu()),
-                          flush=True)
-                    
-        torch.cuda.empty_cache()
-            
-            
-    def discriminate(self, train_data, discrete_columns=tuple(), log_frequency=True):
-        
-        real = torch.from_numpy(np.array(train_data).astype('float32')).to(self.device)
-        return np.squeeze(self.discriminator(real).to('cpu').detach().numpy().copy())
-        
-        assert self.batch_size % 2 == 0
-        
-        index_train = random.sample(list(range(len(train_data))), len(train_data))
-        batch_idx_train = [index_train[i:i+self.batch_size] for i in range(0, len(index_train), self.batch_size)]
-             
-        proba_list = []
-        for idx in batch_idx_train: 
-            
-            condvec = self.cond_generator.sample(len(idx))
-            if condvec is None:
-                c1, m1, col, opt = None, None, None, None
-                real = train_data[idx]
-            else:
-                c1, m1, col, opt = condvec
-                c1 = torch.from_numpy(c1).to(self.device)
-
-                perm = np.arange(len(idx))
-                np.random.shuffle(perm)
-                real = train_data[idx]
-                c2 = c1[perm]
-             
-            real = torch.from_numpy(real.astype('float32')).to(self.device)
-            
-            if c1 is not None: real_cat = torch.cat([real, c2], dim=1)
-            else: real_cat = real
-            y_real = self.discriminator(real_cat)
-            
-            proba_list.append(y_real.to('cpu').detach().numpy().copy())
-         
-        return np.squeeze(np.concatenate(proba_list)) 
-        
 
 def get_fitted_model(x_train,y_train,x_test=None,y_true=None,loss=None,optimizer=keras.optimizers.Adam(),
                      training_epoch=10,batch_size=8,class_weight=None,metrics=['accuracy'],callbacks=None,
@@ -225,13 +63,13 @@ def get_model(shape, class_num):
     shape = tuple(shape)    
 
     #model = multitask_cnn(shape, class_num)#, activation=FReLU)
-    model = VGG16(shape, class_num)
+    model = EfficientNet(shape, class_num)
 
     return model
 
 #VGG16
 def VGG16(shape, class_num):
-    base_model = vgg16.VGG16(include_top=False, weights=None, pooling='avg', input_tensor=Input(shape=shape)) 
+    base_model = vgg16.VGG16(include_top=False, weights='imagenet', pooling='avg')#, input_tensor=Input(shape=shape)) 
     nw = base_model.output
     
     nw = Dense(512, activation='relu')(nw)
@@ -244,12 +82,18 @@ def VGG16(shape, class_num):
         output = Dense(class_num, activation='softmax', name='output')(nw)  
             
     base_model.trainable = True
-        
+    
+    #for train part of model
+    layer_names = [l.name for l in base_model.layers]
+    idx = layer_names.index('block5_conv1')
+    for layer in base_model.layers[:idx]:
+        layer.trainable = False
+    
     return Model(inputs=base_model.input, outputs=output)
 
 #EfficientNet
 def EfficientNet(shape, class_num):
-    base_model = efficientnet.EfficientNetB0(include_top=False, weights=None, pooling='avg', input_tensor=Input(shape=shape)) 
+    base_model = efficientnet.EfficientNetB0(include_top=False, weights='imagenet', pooling='avg')#, input_tensor=Input(shape=shape)) 
     nw = base_model.output
     
     nw = Dense(512, activation='relu')(nw)
@@ -261,8 +105,14 @@ def EfficientNet(shape, class_num):
     else:
         output = Dense(class_num, activation='softmax', name='output')(nw)  
             
-    base_model.trainable = True
+    base_model.trainable = False
         
+    '''#for train part of model
+    layer_names = [l.name for l in base_model.layers]   
+    idx = layer_names.index('block7a_expand_conv')
+    for layer in base_model.layers[:idx]:
+        layer.trainable = False
+    '''   
     return Model(inputs=base_model.input, outputs=output)
 
 #https://github.com/MaciejMazurowski/thyroid-us

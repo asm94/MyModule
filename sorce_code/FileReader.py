@@ -7,18 +7,7 @@ import sys
 
 #Get image in a folder
 def read_img(path, sub_check=False, name_return=False):
-    '''
-    #Setting parameter(required)
-    path => Detail:Path of target image folder.
-            Type  :string 
-
-    #Setting parameter(not absolutely necessary) 
-    sub_check => Detail:Whether or not explore sub folder.
-                 Type  :bool
-    name_return => Detail:Whether or not get image name.
-                   Type  :bool
-    '''
-    
+        
     #Get full-path of target images
     target_files = glob.glob(path+'\**\*.[png|PNG|jpg|JPG|jpeg|JPEG|tiff|TIFF]*', recursive=True) if sub_check else glob.glob(path+'\*.[png|PNG|jpg|JPG|jpeg|JPEG|tiff|TIFF]*')
      
@@ -41,6 +30,7 @@ def read_img(path, sub_check=False, name_return=False):
 
 
 #For path name include japanese
+#https://qiita.com/SKYS/items/cbde3775e2143cad7455
 def imread(filename, flags=cv2.IMREAD_COLOR, dtype=np.uint8):
     try:
         n = np.fromfile(filename, dtype)
@@ -54,7 +44,7 @@ def imread(filename, flags=cv2.IMREAD_COLOR, dtype=np.uint8):
 #Get csv in a folder as pandas.DataFrame
 def read_csv(path, encode, sub_check=False, target_name=None):
     #Get all csv file-path in a folder 
-    target_files = glob.glob(path+'\**\*.csv', recursive=True) if sub_check else glob.glob(path+'\*.csv')
+    target_files = glob.glob(path+r'\**\*.csv', recursive=True) if sub_check else glob.glob(path+r'\*.csv')
 
     #For return
     merged_file = pd.DataFrame()
