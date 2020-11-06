@@ -3,8 +3,7 @@ from tensorflow import keras
 from tensorflow.keras.initializers import Constant
 from tensorflow.keras.layers import Input, Dense, Dropout, Flatten, Conv2D, MaxPooling2D, Lambda, BatchNormalization, Activation, MaxPool2D, DepthwiseConv2D
 from tensorflow.keras.models import Model
-from tensorflow.keras.applications import vgg16
-from tensorflow.keras.applications import efficientnet
+from tensorflow.keras.applications import vgg16, vgg19, efficientnet, InceptionV3, ResNet50V2, DenseNet201, NASNetLarge
 
 import torch
 from torch import optim
@@ -18,7 +17,6 @@ from ctgan.conditional import ConditionalGenerator
 from ctgan.models import Discriminator, Generator
 from ctgan.sampler import Sampler
 from ctgan.transformer import DataTransformer
-
 
 def get_fitted_model(x_train,y_train,x_test=None,y_true=None,loss=None,optimizer=keras.optimizers.Adam(),
                      training_epoch=10,batch_size=8,class_weight=None,metrics=['accuracy'],callbacks=None,
@@ -63,12 +61,12 @@ def get_model(shape, class_num):
     shape = tuple(shape)    
 
     #model = multitask_cnn(shape, class_num)#, activation=FReLU)
-    model = EfficientNet(shape, class_num)
+    model = efficientNet(shape, class_num)
 
     return model
 
 #VGG16
-def VGG16(shape, class_num):
+def vgg16(shape, class_num):
     base_model = vgg16.VGG16(include_top=False, weights='imagenet', pooling='avg')#, input_tensor=Input(shape=shape)) 
     nw = base_model.output
     
@@ -91,9 +89,58 @@ def VGG16(shape, class_num):
     
     return Model(inputs=base_model.input, outputs=output)
 
+#VGG19
+def vgg19(shape, class_num):
+    base_model = vgg19.VGG19(include_top=False, weights='imagenet', pooling='avg')#, input_tensor=Input(shape=shape)) 
+    nw = base_model.output
+    
+    nw = Dense(512, activation='relu')(nw)
+    nw = Dropout(.4)(nw)
+    nw = Dense(512, activation='relu')(nw)
+    
+    if class_num<=2:
+        output = Dense(class_num, activation='sigmoid', name='output')(nw)     
+    else:
+        output = Dense(class_num, activation='softmax', name='output')(nw)  
+            
+    base_model.trainable = True
+    
+    #for train part of model
+    layer_names = [l.name for l in base_model.layers]
+    idx = layer_names.index('block5_conv1')
+    for layer in base_model.layers[:idx]:
+        layer.trainable = False
+    
+    return Model(inputs=base_model.input, outputs=output)
+
 #EfficientNet
-def EfficientNet(shape, class_num):
+def efficientNet(shape, class_num):
     base_model = efficientnet.EfficientNetB0(include_top=False, weights='imagenet', pooling='avg')#, input_tensor=Input(shape=shape)) 
+    nw = base_model.output
+    
+    nw = Dense(512, activation='relu')(nw)
+    #nw = Dropout(.5)(nw)
+    #nw = Dense(512, activation='relu')(nw)
+    #nw = Dropout(.5)(nw)
+    
+    if class_num<=2:
+        output = Dense(class_num, activation='sigmoid', name='output')(nw)     
+    else:
+        output = Dense(class_num, activation='softmax', name='output')(nw)  
+            
+    base_model.trainable = False
+        
+    '''#for train part of model
+    layer_names = [l.name for l in base_model.layers]   
+    idx = layer_names.index('block6a_expand_conv')
+    for layer in base_model.layers[:idx]:
+        layer.trainable = False
+    '''
+    return Model(inputs=base_model.input, outputs=output)
+
+#InceptionV3(googlenet)
+def inceptionv3(shape, class_num):
+    base_model = InceptionV3(include_top=False, weights='imagenet', pooling='avg')#, input_tensor=Input(shape=shape)) 
     nw = base_model.output
     
     nw = Dense(512, activation='relu')(nw)
@@ -114,6 +161,80 @@ def EfficientNet(shape, class_num):
         layer.trainable = False
     '''   
     return Model(inputs=base_model.input, outputs=output)
+
+#ResNet
+def resnet(shape, class_num):
+    base_model = ResNet50V2(include_top=False, weights='imagenet', pooling='avg')#, input_tensor=Input(shape=shape)) 
+    nw = base_model.output
+    
+    nw = Dense(512, activation='relu')(nw)
+    nw = Dropout(.4)(nw)
+    nw = Dense(512, activation='relu')(nw)
+    
+    if class_num<=2:
+        output = Dense(class_num, activation='sigmoid', name='output')(nw)     
+    else:
+        output = Dense(class_num, activation='softmax', name='output')(nw)  
+            
+    base_model.trainable = False
+        
+    '''#for train part of model
+    layer_names = [l.name for l in base_model.layers]   
+    idx = layer_names.index('block7a_expand_conv')
+    for layer in base_model.layers[:idx]:
+        layer.trainable = False
+    '''   
+    return Model(inputs=base_model.input, outputs=output)
+
+#DenseNet
+def densenet(shape, class_num):
+    base_model = DenseNet201(include_top=False, weights='imagenet', pooling='avg')#, input_tensor=Input(shape=shape)) 
+    nw = base_model.output
+    
+    nw = Dense(512, activation='relu')(nw)
+    nw = Dropout(.4)(nw)
+    nw = Dense(512, activation='relu')(nw)
+    
+    if class_num<=2:
+        output = Dense(class_num, activation='sigmoid', name='output')(nw)     
+    else:
+        output = Dense(class_num, activation='softmax', name='output')(nw)  
+            
+    base_model.trainable = False
+        
+    '''#for train part of model
+    layer_names = [l.name for l in base_model.layers]   
+    idx = layer_names.index('block7a_expand_conv')
+    for layer in base_model.layers[:idx]:
+        layer.trainable = False
+    '''   
+    return Model(inputs=base_model.input, outputs=output)
+
+
+#NasNet
+def nasnet(shape, class_num):
+    base_model = NASNetLarge(include_top=False, weights='imagenet', pooling='avg')#, input_tensor=Input(shape=shape)) 
+    nw = base_model.output
+    
+    nw = Dense(512, activation='relu')(nw)
+    nw = Dropout(.4)(nw)
+    nw = Dense(512, activation='relu')(nw)
+    
+    if class_num<=2:
+        output = Dense(class_num, activation='sigmoid', name='output')(nw)     
+    else:
+        output = Dense(class_num, activation='softmax', name='output')(nw)  
+            
+    base_model.trainable = False
+        
+    '''#for train part of model
+    layer_names = [l.name for l in base_model.layers]   
+    idx = layer_names.index('block7a_expand_conv')
+    for layer in base_model.layers[:idx]:
+        layer.trainable = False
+    '''   
+    return Model(inputs=base_model.input, outputs=output)
+
 
 #https://github.com/MaciejMazurowski/thyroid-us
 def multitask_cnn(data_shape, class_num, activation=Activation('relu')):
