@@ -79,10 +79,13 @@ def generate_data_ctgan(raw_data, generate_sample=0, ex_column=[], epoch=50,
 
 
 #Adjust the number per period based on the specified attributes.
-def adjust_number(data, target_column, attribute, sub_attribute=None, period=10):
+def adjust_number(data, target_column, attribute, sub_attribute=None, period=10, return_exdata=False):
     
     #Returns without processing if the target dataset is empty or has only one attribute.
-    if len(data)==0 or len(set(data[attribute]))==1: return data
+    if len(data)==0 or len(set(data[attribute]))==1: return data if not return_exdata else (data, pd.DataFrame())
+        
+    #Add "idx" column to get excluded data
+    if return_exdata: data['idx'] = list(range(len(data)))
     
     #Set the upper and lower limits of the interval and the maximum value of the target column
     lower = 0 if data[target_column].min() >= 0 else data[target_column].min()
@@ -175,5 +178,13 @@ def adjust_number(data, target_column, attribute, sub_attribute=None, period=10)
         #Section Update
         lower += period
         upper += period
+     
+    #Get excluded data and return
+    if return_exdata:
+        exdata = data[~data['idx'].isin(data_adjusted['idx'])]
+        data_adjusted = data_adjusted.drop('idx', axis=1)
+        exdata = exdata.drop('idx', axis=1)
         
+        return data_adjusted, exdata
+    
     return data_adjusted

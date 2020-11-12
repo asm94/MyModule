@@ -103,7 +103,7 @@ def read_pickle(path, sub_check=False, target_name=None):
     target_pickle = None
 
     #Explore all pickle
-    for filepath in target_files:
+    for filepath in sorted(target_files):
         
         #Not specify target name
         if target_name == None:
@@ -124,9 +124,7 @@ def read_pickle(path, sub_check=False, target_name=None):
             if target_pickle==None and target_name in filename:
                 with open(filepath, mode='rb') as fp:
                     target_pickle = pickle.load(fp)
-                
-            #Seconde file including target name must not exists
-            elif target_pickle!=None and target_name in filename:
-                sys.exit('@read_pickle function: Files in that this target_name exists upper 2.')
+                    print(target_name)
+                break
         
     return target_pickle

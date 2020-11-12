@@ -5,10 +5,11 @@ import pydotplus
 from sklearn import tree
 from sklearn.inspection import plot_partial_dependence
 import matplotlib.pyplot as plt
+from sklearn.preprocessing import minmax_scale
 
 #Machine learning validation
 def fit_predict(clf, x_train, y_train, x_test, y_true, use_second_model=False, clf_sec=None, x_train_sec=pd.DataFrame(), y_train_sec=pd.DataFrame(),
-                mode='normal', use_weight=False, early_stop_num=None, cat_feature=None, normal_class=None):
+                mode='normal', use_weight=False, early_stop_num=None, cat_feature=None):
     #Change the objective variable to integer type
     y_train = y_train.astype('int')
     y_true = y_true.astype('int')
@@ -33,19 +34,19 @@ def fit_predict(clf, x_train, y_train, x_test, y_true, use_second_model=False, c
         if use_second_model: w_train_sec = None
     
     #one class mode
-    if mode=='lof' or mode=='ocsvm':
-        if normal_class == None:
-            count = y_train.value_counts()    
-            normal_class = count[count==count.max()].iloc[0].index
-            
-        tgt_train = x_train[y_train==normal_class]
+    if mode=='lof' or mode=='ocsvm':                    
+        tgt_train = x_train[y_train==0]
         clf.fit(tgt_train)
-        proba = clf.decision_function(x_test)
+        proba = clf.decision_function(x_test) #normal=1, anomaly=-1
+        proba = minmax_scale(proba) #normal=1, anomaly=0
+        proba = -1*proba + 1 #normal=0, anomaly=1
         
         if use_second_model:
-            tgt_train_sec = x_train_sec[y_train_sec==normal_class]
+            tgt_train_sec = x_train_sec[y_train_sec==0]
             clf_sec.fit(tgt_train_sec) 
-            proba_sec = clf_sec.decision_function(x_test)
+            proba_sec = clf_sec.decision_function(x_test) #normal=1, anomaly=-1
+            proba_sec = minmax_scale(proba_sec) #normal=1, anomaly=0
+            proba_sec = -1*proba_sec + 1 #normal=0, anomaly=1
             
         return proba if not use_second_model else np.stack([proba, proba_sec])
         
