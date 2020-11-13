@@ -7,6 +7,12 @@ from sklearn.inspection import plot_partial_dependence
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import minmax_scale
 
+#自作モジュール
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..\..'))
+from Efficient_GAN.model import *
+
 #Machine learning validation
 def fit_predict(clf, x_train, y_train, x_test, y_true, use_second_model=False, clf_sec=None, x_train_sec=pd.DataFrame(), y_train_sec=pd.DataFrame(),
                 mode='normal', use_weight=False, early_stop_num=None, cat_feature=None):
@@ -34,7 +40,7 @@ def fit_predict(clf, x_train, y_train, x_test, y_true, use_second_model=False, c
         if use_second_model: w_train_sec = None
     
     #one class mode
-    if mode=='lof' or mode=='ocsvm':                    
+    if mode=='lof' or mode=='ocsvm' or mode=='if':                    
         tgt_train = x_train[y_train==0]
         clf.fit(tgt_train)
         proba = clf.decision_function(x_test) #normal=1, anomaly=-1
@@ -48,8 +54,25 @@ def fit_predict(clf, x_train, y_train, x_test, y_true, use_second_model=False, c
             proba_sec = minmax_scale(proba_sec) #normal=1, anomaly=0
             proba_sec = -1*proba_sec + 1 #normal=0, anomaly=1
             
-        return proba if not use_second_model else np.stack([proba, proba_sec])
+        return proba if not use_second_model else np.stack([proba, proba_sec]) 
+    
+    #"EfficientGAN" mode
+    elif mode=='efgan':         
+        tgt_train = x_train[y_train==0]
+        model = EfficientGAN()
+        model.fit(tgt_train, epochs=2000, test=(x_test,y_true), verbose=1)
+        proba = model.predict(x_test) #normal=0, anomaly=∞
+        proba = minmax_scale(proba) #normal=0, anomaly=1
         
+        if use_second_model:
+            tgt_train_sec = x_train_sec[y_train_sec==0]
+            model = EfficientGAN()
+            model.fit(tgt_train_sec, test=(x_test,y_true), verbose=1)
+            proba_sec = model.predict(x_test) #normal=0, anomaly=∞
+            proba_sec = minmax_scale(proba_sec) #normal=0, anomaly=1
+            
+        return proba if not use_second_model else np.stack([proba, proba_sec])
+    
     #"XGBoost" mode
     elif mode=='xgb':
         eval_set = None if early_stop_num==None else [(x_test, y_true)]
