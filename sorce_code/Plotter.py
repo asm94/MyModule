@@ -70,13 +70,14 @@ def plot_2D_scatters(data, ticklabels=None, group=None, display_correlation=Fals
             for name in sorted(group.unique()):
                 sns.scatterplot(x=data.iloc[:,pair[0]].loc[(group==name)],
                                 y=data.iloc[:,pair[1]].loc[(group==name)],
-                                label=name, ax=ax[ver_idx][hor_idx])
+                                label=name, ax=ax[ver_idx][hor_idx],
+                                alpha=0.5)
                 ax[ver_idx][hor_idx].legend()
         else:
             sns.scatterplot(x=data.iloc[:,pair[0]], y=data.iloc[:,pair[1]], ax=ax[ver_idx][hor_idx])
             
-        ax[ver_idx][hor_idx].set_xlim(0.0,1.0)
-        ax[ver_idx][hor_idx].set_ylim(0.0,1.0)
+        #ax[ver_idx][hor_idx].set_xlim(0.0,2.0)
+        ax[ver_idx][hor_idx].set_ylim(0.0,0.7)
         
         if display_correlation:
             corr = stats.pearsonr(data.iloc[:,pair[0]], data.iloc[:,pair[1]])[0]

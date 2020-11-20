@@ -1,7 +1,7 @@
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.initializers import Constant
-from tensorflow.keras.layers import Input, Dense, Dropout, Flatten, Conv2D, MaxPooling2D, Lambda, BatchNormalization, Activation, MaxPool2D, DepthwiseConv2D
+from tensorflow.keras.layers import Input, Dense, Dropout, Flatten, Conv2D, MaxPooling2D, Lambda, BatchNormalization, Activation, MaxPool2D, DepthwiseConv2D, Concatenate
 from tensorflow.keras.models import Model
 from tensorflow.keras.applications import vgg16, vgg19, efficientnet, InceptionV3, ResNet50V2, DenseNet201, NASNetLarge
 
@@ -320,4 +320,4 @@ def plot_training_history(model_history, path_save_history=None, save_index=''):
 
     if path_save_history!=None:
         fig.savefig(path_save_history+r'\history_data{0}.png'.format(save_index),dpi=100)
-        
+    

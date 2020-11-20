@@ -54,7 +54,25 @@ def fit_predict(clf, x_train, y_train, x_test, y_true, use_second_model=False, c
             proba_sec = minmax_scale(proba_sec) #normal=1, anomaly=0
             proba_sec = -1*proba_sec + 1 #normal=0, anomaly=1
             
-        return proba if not use_second_model else np.stack([proba, proba_sec]) 
+        return proba if not use_second_model else np.stack([proba, proba_sec])
+    
+    #one class mode
+    elif mode=='gmm':                    
+        tgt_train = x_train[y_train==0]
+        clf.fit(tgt_train)
+        proba = clf.predict_proba(x_test) #normal=1, anomaly=-1
+        print(proba)
+        proba = minmax_scale(proba) #normal=1, anomaly=0
+        proba = -1*proba + 1 #normal=0, anomaly=1
+        
+        if use_second_model:
+            tgt_train_sec = x_train_sec[y_train_sec==0]
+            clf_sec.fit(tgt_train_sec) 
+            proba_sec = clf_sec.predict_proba(x_test) #normal=1, anomaly=-1
+            proba_sec = minmax_scale(proba_sec) #normal=1, anomaly=0
+            proba_sec = -1*proba_sec + 1 #normal=0, anomaly=1
+            
+        return proba if not use_second_model else np.stack([proba, proba_sec])
     
     #"EfficientGAN" mode
     elif mode=='efgan':         
