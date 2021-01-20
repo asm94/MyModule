@@ -6,6 +6,7 @@ from sklearn import tree
 from sklearn.inspection import plot_partial_dependence
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import minmax_scale
+import pickle
 
 #自作モジュール
 import sys
@@ -15,7 +16,11 @@ from Efficient_GAN.model import *
 
 #Machine learning validation
 def fit_predict(clf, x_train, y_train, x_test, y_true, use_second_model=False, clf_sec=None, x_train_sec=pd.DataFrame(), y_train_sec=pd.DataFrame(),
-                mode='normal', use_weight=False, early_stop_num=None, cat_feature=None):
+                mode='normal', use_weight=False, early_stop_num=None, cat_feature=None, output_path=None, identifier=''):
+    if output_path!=None:
+        y_true.name = 'class'
+        pd.concat([x_test,y_true], axis=1).to_csv(output_path+'\\'+f'testdata_{identifier}.csv', encoding='cp932', index=False)
+    
     #Change the objective variable to integer type
     y_train = y_train.astype('int')
     y_true = y_true.astype('int')
@@ -43,13 +48,17 @@ def fit_predict(clf, x_train, y_train, x_test, y_true, use_second_model=False, c
     if mode=='lof' or mode=='ocsvm' or mode=='if':                    
         tgt_train = x_train[y_train==0]
         clf.fit(tgt_train)
+        if output_path!=None:
+            with open(output_path+'\\'+f'model_{identifier}.pickle', 'wb') as f: pickle.dump(clf, f)
         proba = clf.decision_function(x_test) #normal=1, anomaly=-1
         proba = minmax_scale(proba) #normal=1, anomaly=0
         proba = -1*proba + 1 #normal=0, anomaly=1
         
         if use_second_model:
             tgt_train_sec = x_train_sec[y_train_sec==0]
-            clf_sec.fit(tgt_train_sec) 
+            clf_sec.fit(tgt_train_sec)
+            if output_path!=None:
+                with open(output_path+'\\'+f'model_sec_{identifier}.pickle', 'wb') as f: pickle.dump(clf_sec, f)
             proba_sec = clf_sec.decision_function(x_test) #normal=1, anomaly=-1
             proba_sec = minmax_scale(proba_sec) #normal=1, anomaly=0
             proba_sec = -1*proba_sec + 1 #normal=0, anomaly=1
@@ -60,6 +69,9 @@ def fit_predict(clf, x_train, y_train, x_test, y_true, use_second_model=False, c
     elif mode=='gmm':                    
         tgt_train = x_train[y_train==0]
         clf.fit(tgt_train)
+        if output_path!=None:
+            with open(output_path+'\\'+f'model_{identifier}.pickle', 'wb') as f: pickle.dump(clf, f)
+        
         proba = clf.predict_proba(x_test) #normal=1, anomaly=-1
         print(proba)
         proba = minmax_scale(proba) #normal=1, anomaly=0
@@ -68,6 +80,8 @@ def fit_predict(clf, x_train, y_train, x_test, y_true, use_second_model=False, c
         if use_second_model:
             tgt_train_sec = x_train_sec[y_train_sec==0]
             clf_sec.fit(tgt_train_sec) 
+            if output_path!=None:
+                with open(output_path+'\\'+f'model_sec_{identifier}.pickle', 'wb') as f: pickle.dump(clf_sec, f)
             proba_sec = clf_sec.predict_proba(x_test) #normal=1, anomaly=-1
             proba_sec = minmax_scale(proba_sec) #normal=1, anomaly=0
             proba_sec = -1*proba_sec + 1 #normal=0, anomaly=1
@@ -79,6 +93,8 @@ def fit_predict(clf, x_train, y_train, x_test, y_true, use_second_model=False, c
         tgt_train = x_train[y_train==0]
         model = EfficientGAN()
         model.fit(tgt_train, epochs=2000, test=(x_test,y_true), verbose=1)
+        if output_path!=None:
+            with open(output_path+'\\'+f'model_{identifier}.pickle', 'wb') as f: pickle.dump(model, f)
         proba = model.predict(x_test) #normal=0, anomaly=∞
         proba = minmax_scale(proba) #normal=0, anomaly=1
         
@@ -96,20 +112,36 @@ def fit_predict(clf, x_train, y_train, x_test, y_true, use_second_model=False, c
         eval_set = None if early_stop_num==None else [(x_test, y_true)]
         clf.fit(x_train, y_train, sample_weight=w_train, early_stopping_rounds=early_stop_num, eval_set=eval_set, 
                 verbose=0)
-        if use_second_model: clf_sec.fit(x_train_sec, y_train_sec, sample_weight=w_train_sec,
+        if output_path!=None:
+            with open(output_path+'\\'+f'model_{identifier}.pickle', 'wb') as f: pickle.dump(clf, f)
+        if use_second_model:
+            clf_sec.fit(x_train_sec, y_train_sec, sample_weight=w_train_sec,
                                          early_stopping_rounds=early_stop_num, eval_set=eval_set, verbose=0)
+            if output_path!=None:
+                with open(output_path+'\\'+f'model_sec_{identifier}.pickle', 'wb') as f: pickle.dump(clf_sec, f)
+                
     #"catboost" mode
     elif mode=='catb':
         eval_set = None if early_stop_num==None else (x_test, y_true)
         clf.fit(x_train, y_train, sample_weight=w_train, early_stopping_rounds=early_stop_num,
                 eval_set=eval_set, cat_features=cat_feature, use_best_model=True, verbose=0)
-        if use_second_model: clf_sec.fit(x_train, y_train, sample_weight=w_train, early_stopping_rounds=early_stop_num,
+        if output_path!=None:
+            with open(output_path+'\\'+f'model_{identifier}.pickle', 'wb') as f: pickle.dump(clf, f)
+        if use_second_model:
+            clf_sec.fit(x_train, y_train, sample_weight=w_train, early_stopping_rounds=early_stop_num,
                                          eval_set=eval_set, cat_features=cat_feature, use_best_model=True, verbose=0)
+            if output_path!=None:
+                with open(output_path+'\\'+f'model_sec_{identifier}.pickle', 'wb') as f: pickle.dump(clf_sec, f)        
     
     #other mode
     else:
         clf.fit(x_train, y_train)
-        if use_second_model: clf_sec.fit(x_train_sec, y_train_sec)
+        if output_path!=None:
+            with open(output_path+'\\'+f'model_{identifier}.pickle', 'wb') as f: pickle.dump(clf, f)
+        if use_second_model:
+            clf_sec.fit(x_train_sec, y_train_sec)
+            if output_path!=None:
+                with open(output_path+'\\'+f'model_sec_{identifier}.pickle', 'wb') as f: pickle.dump(clf_sec, f) 
     
     #Predict
     proba_both = clf.predict_proba(x_test)    
