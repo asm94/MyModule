@@ -32,7 +32,7 @@ def plot_beeswarm(data, x_label=None, y_label=None, x_ticklabels=[]):
 
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)    
-    ax = sns.swarmplot(data=data)
+    ax = sns.swarmplot(data=np.array(data))
 
     ax.set_xlabel(x_label)
     ax.set_ylabel(y_label)

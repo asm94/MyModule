@@ -184,7 +184,7 @@ def get_shap_values(fitted_model, x_train, y_train, x_test, pred_positive_only=F
     
 
 ##Display partial dependance
-def plot_PDP(fitted_clf, data, tgt_clm, ax=None):
+def plot_PDP(fitted_clf, data, tgt_clm, cat_feature=False, ax=None):
     data_temp = data.copy()
     grid = np.linspace(np.percentile(data_temp.loc[:,tgt_clm], 0.1),
                        np.percentile(data_temp.loc[:,tgt_clm], 99.5),
@@ -192,7 +192,7 @@ def plot_PDP(fitted_clf, data, tgt_clm, ax=None):
     
     y_pred = np.zeros(len(grid))
     for i, val in enumerate(grid):
-        data_temp.loc[:,tgt_clm] = val
+        data_temp.loc[:,tgt_clm] = val if not cat_feature else int(val) if (val-int(val))<0.5 else int(val)+1
         y_pred[i] = np.average(fitted_clf.predict_proba(data_temp)[:,1])
             
     y_pred_adjust=[x-0.5 for x in y_pred]
