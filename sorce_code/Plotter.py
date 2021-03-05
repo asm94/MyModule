@@ -27,10 +27,10 @@ def plot_confusion_matrix(matrix, lebales, title=None):
     return
     
 #Plot beeswarm
-def plot_beeswarm(data, x_label=None, y_label=None, x_ticklabels=[]):
+def plot_beeswarm(data, x_label=None, y_label=None, x_ticklabels=[], save_filename=None):
     sns.set_style("whitegrid")  
 
-    fig = plt.figure()
+    fig = plt.figure(figsize=(16, 7))
     ax = fig.add_subplot(1, 1, 1)    
     ax = sns.swarmplot(data=np.array(data))
 
@@ -39,6 +39,7 @@ def plot_beeswarm(data, x_label=None, y_label=None, x_ticklabels=[]):
 
     ax.set_xticklabels(x_ticklabels)    
 
+    if save_filename!=None: plt.savefig(save_filename, dpi=600, facecolor='white')
     plt.show()
     
     return
