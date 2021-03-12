@@ -147,7 +147,7 @@ def plot_curve(axes, x, y, x_label=None, y_label=None, title=None, display=False
     data = pd.DataFrame(xy.T, columns=['x','y']).sort_values(['x','y'])
     x, y = np.array(data['x']), np.array(data['y'])
     
-    axes.plot(x, y, label='AUC = %.2f'%np.trapz(y,x))
+    axes.plot(x, y, label='AUC = %.3f'%np.trapz(y,x))
     axes.legend(bbox_to_anchor=(1, 0), loc='lower right', borderaxespad=1, fontsize=8)
     axes.grid(color='gray')
     if x_label != None: axes.set_xlabel(x_label)
