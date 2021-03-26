@@ -3,8 +3,10 @@ import pandas as pd
 import numpy as np
 import pickle
 from sklearn.preprocessing import StandardScaler
+from sklearn.impute import KNNImputer
 from ctgan import CTGANSynthesizer
-from .FileReader import read_pickle
+
+from .FileReader import read_pickle   
 
 #Compress dimention
 def dimensional_compressor(df, ignore_column=[], dimention=1, random_seed=None):
@@ -188,3 +190,26 @@ def adjust_number(data, target_column, attribute, sub_attribute=None, period=10,
         return data_adjusted, exdata
     
     return data_adjusted
+
+
+#Complete nan values with KNN
+def NaN_complete(df_target, df_train=pd.DataFrame(), ex_column=[], n_neighbors=3): 
+    
+    #Define complementer
+    imputer = KNNImputer(n_neighbors=n_neighbors)
+    
+    #Completion
+    #Completion source data is not data for completion
+    if len(df_train) > 0:
+        imputer.fit(df_train.drop(ex_column, axis=1))
+        np_values = imputer.transform(df_target.drop(ex_column, axis=1))
+        
+    #Completion source data is data for completion
+    else:
+        np_values = imputer.fit_transform(df_target.drop(ex_column, axis=1))
+    
+    #Data forming
+    df_comp = pd.DataFrame(np_values, columns=df_target.drop(ex_column, axis=1).columns, index=df_target.index)
+    df_target = pd.concat([df_target.loc[:,ex_column], df_comp], axis=1).loc[:,df_target.columns]
+                        
+    return df_target

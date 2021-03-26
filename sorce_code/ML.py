@@ -1,11 +1,12 @@
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 import shap
 import pydotplus
 from sklearn import tree
 from sklearn.inspection import plot_partial_dependence
-import matplotlib.pyplot as plt
 from sklearn.preprocessing import minmax_scale
+from sklearn.metrics import confusion_matrix
 import pickle
 
 #自作モジュール
@@ -204,3 +205,118 @@ def plot_PDP(fitted_clf, data, tgt_clm, cat_feature=False, ax=None):
     ax.set_xlabel(tgt_clm)
     ax.set_ylabel('Partial Dependence')
     
+    
+##Calculate model performance value corresponding to a single threshold
+def calculate_performance(true_label, pred_label, num_class=2):
+    
+    #2 classes(positive=1, negative=0) 
+    if num_class == 2:
+        cm = confusion_matrix(true_label, pred_label, labels=[1, 0])
+        tp, fn, fp, tn = cm.flatten()
+        
+        out = {'accuracy'       : ((tp+tn)/(tp+fn+fp+tn)) if (tp+fn+fp+tn)!=0 else 0,
+               'precision'      : (tp/(tp+fp)) if (tp+fp)!=0 else 1,
+               'nega_precision' : (tn/(tn+fn)) if (tn+fn)!=0 else 1,
+               'recall'         : (tp/(fn+tp)) if (fn+tp)!=0 else 0,
+               'specificity'    : (tn/(fp+tn)) if (fp+tn)!=0 else 0,
+              }
+        
+        return out
+    
+    #3 classes
+    elif num_class == 3:
+        cm = confusion_matrix(true_label, pred_label, labels=[0, 1, 2])
+        
+        out = {'accuracy'          : (cm[0,0]+cm[1,1]+cm[2,2]) / cm.sum() if cm.sum()!=0 else 0,
+               'precision_class0'  : cm[0,0] / sum(cm[:,0]) if sum(cm[:,0])!=0 else 1,
+               'precision_class1'  : cm[1,1] / sum(cm[:,1]) if sum(cm[:,1])!=0 else 1,
+               'precision_class2'  : cm[2,2] / sum(cm[:,2]) if sum(cm[:,2])!=0 else 1,
+               'recall_class0'     : cm[0,0] / sum(cm[0]) if sum(cm[0])!=0 else 0,
+               'recall_class1'     : cm[1,1] / sum(cm[1]) if sum(cm[1])!=0 else 0,
+               'recall_class2'     : cm[2,2] / sum(cm[2]) if sum(cm[2])!=0 else 0,               
+              }
+        
+        return out
+    
+    #The other number of classes is undefined.
+    else:
+        sys.exit('ERROR:Unexpected number of classes.')
+        
+        
+#Optimize border
+def optimize_border(positive_proba, true_label, positive_proba_sec=[], step=0.1, maximize_metrics='f_score'):
+        
+    #Set range of border
+    lower = 0.0
+    upper = 1.0
+    data = None
+    if len(positive_proba) == len(positive_proba_sec) == len(true_label):       
+        lower = 0.0
+        upper = 1.1
+        data = pd.DataFrame(columns = ['precision', 'recall', 'fpr', 'border', 'boder_sec'])
+    else:
+        lower = 0.00
+        upper = 1.01
+        data = pd.DataFrame(columns = ['precision', 'recall', 'fpr', 'border'])  
+        step *= 0.1
+       
+    #Explore border optimized
+    max_idx = 0
+    best_pred = None
+    best_border = 0
+    posi_num = len(true_label[true_label==1])
+    nega_num = len(true_label[true_label==0])
+    for border in np.arange(lower, upper, step)[::-1]:
+        #Dual model
+        if len(positive_proba) == len(positive_proba_sec) == len(true_label):
+            for border_sec in np.arange(lower, upper, step)[::-1]:
+                pred_label = [0]*len(positive_proba)
+                for i in range(0,len(positive_proba)):
+                    pred_label[i] = 1 if positive_proba[i]>=border and positive_proba_sec[i]>=border_sec else 0
+                
+                precision = precision_score_u(true_label, pred_label)
+                recall = recall_score_u(true_label, pred_label)
+                fpr = fpr_score(true_label, pred_label)
+                                
+                temp_idx = None
+                if maximize_metrics == 'f_score': temp_idx = f_score_u(precision, recall) #F-score
+                elif maximize_metrics == 'youden_index': temp_idx = recall+(1-fpr)-1 #Youden Index
+                else:
+                    print(f'Select from ["f_score", "youden_index"] and choose it as the "maximize_metrics" argument.')
+                    return None
+                
+                if max_idx < temp_idx or best_pred == None:
+                    best_pred = pred_label
+                    max_idx = temp_idx        
+        
+                se = pd.Series([precision, recall, fpr, border, border_sec],
+                               index=['precision', 'recall', 'fpr', 'border', 'border_sec'])
+                data = data.append(se, ignore_index=True)
+                                
+        #Single model 
+        else:
+            pred_label = [0]*len(positive_proba)
+            for i in range(0,len(positive_proba)):
+                pred_label[i] = 1 if positive_proba[i]>=border else 0
+                        
+            precision = precision_score_u(true_label, pred_label)
+            recall = recall_score_u(true_label, pred_label)            
+            fpr = fpr_score(true_label, pred_label)
+             
+            temp_idx = None
+            if maximize_metrics == 'f_score': temp_idx = f_score_u(precision, recall) #F-score
+            elif maximize_metrics == 'youden_index': temp_idx = recall+(1-fpr)-1 #Youden Index
+            else:
+                print(f'Select from ["f_score", "youden_index"] and choose it as the "maximize_metrics" argument.')
+                return None
+                
+            if max_idx < temp_idx or best_pred == None:
+                best_pred = pred_label
+                max_idx = temp_idx
+                best_border = border        
+        
+            se = pd.Series([precision, recall, fpr, border],
+                           index=['precision', 'recall', 'fpr', 'border'])
+            data = data.append(se, ignore_index=True)
+                      
+    return best_pred, data
