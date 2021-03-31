@@ -113,6 +113,10 @@ def optimize_border(positive_proba, true_label, positive_proba_sec=[], step=0.1,
         data = pd.DataFrame(columns = ['precision', 'recall', 'fpr', 'border'])  
         step *= 0.1
        
+    #Unify to numpy-type
+    positive_proba = np.array(positive_proba)
+    positive_proba_sec = np.array(positive_proba_sec)
+       
     #Explore border optimized
     max_idx = 0
     best_pred = None
