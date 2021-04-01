@@ -55,7 +55,7 @@ def plot_2D_scatters(data, ticklabels=None, group=None, display_correlation=Fals
     vertical = 1
     horizonal = 1
     
-    #Define gragh size like square if data number is upper 3
+    #Define gragh size like square if number of the data is upper 3
     if len(combination_list)>=2:
         divisor = sorted([i for i in range(1,len(combination_list)+1) if len(combination_list)%i == 0])  
         vertical = divisor[int(np.median(range(0,len(divisor))))]
