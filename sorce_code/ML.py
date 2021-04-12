@@ -77,17 +77,16 @@ def calculate_performance(true_label, pred_label, num_class=2):
         return out
     
     #3 classes
-    elif num_class == 3:
-        cm = confusion_matrix(true_label, pred_label, labels=[0, 1, 2])
+    elif num_class >= 3:
+        cm = confusion_matrix(true_label, pred_label, labels=list(np.unique(true_label)))
         
-        out = {'accuracy'          : (cm[0,0]+cm[1,1]+cm[2,2]) / cm.sum() if cm.sum()!=0 else 0,
-               'precision_class0'  : cm[0,0] / sum(cm[:,0]) if sum(cm[:,0])!=0 else 1,
-               'precision_class1'  : cm[1,1] / sum(cm[:,1]) if sum(cm[:,1])!=0 else 1,
-               'precision_class2'  : cm[2,2] / sum(cm[:,2]) if sum(cm[:,2])!=0 else 1,
-               'recall_class0'     : cm[0,0] / sum(cm[0]) if sum(cm[0])!=0 else 0,
-               'recall_class1'     : cm[1,1] / sum(cm[1]) if sum(cm[1])!=0 else 0,
-               'recall_class2'     : cm[2,2] / sum(cm[2]) if sum(cm[2])!=0 else 0,               
-              }
+        out = {'accuracy':0}
+        for i in np.unique(true_label):
+            out['accuracy'] += cm[i,i]
+            out[f'precision_class{i}'] = cm[i,i] / sum(cm[:,i]) if sum(cm[:,i])!=0 else 1
+            out[f'recall_class{i}'] = cm[i,i] / sum(cm[i]) if sum(cm[i])!=0 else 0
+            
+        out['accuracy'] = out['accuracy'] / cm.sum() if cm.sum()!=0 else 0
         
         return out
     
@@ -120,6 +119,7 @@ def optimize_border(positive_proba, true_label, positive_proba_sec=[], step=0.1,
     #Explore border optimized
     max_idx = 0
     best_pred = None
+    best_border = 0
     for border in np.arange(lower, upper, step)[::-1]:
         #Dual model
         if len(positive_proba) == len(positive_proba_sec) == len(true_label):
@@ -169,9 +169,11 @@ def optimize_border(positive_proba, true_label, positive_proba_sec=[], step=0.1,
             if max_idx < temp_idx or best_pred == None:
                 best_pred = pred_label
                 max_idx = temp_idx
+                best_border = border
         
             se = pd.Series([precision, recall, fpr, border],
                            index=['precision', 'recall', 'fpr', 'border'])
             data = data.append(se, ignore_index=True)
-                      
+     
+    #print(f'Best border is {best_border}')               
     return best_pred, data

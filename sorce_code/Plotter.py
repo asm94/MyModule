@@ -68,6 +68,7 @@ def plot_2D_scatters(data, ticklabels=None, group=None, display_correlation=Fals
         ver_idx = i%vertical
         
         if not group is None:
+            group = group.reset_index(drop=True)
             for name in sorted(group.unique()):
                 sns.scatterplot(x=data.iloc[:,pair[0]].loc[(group==name)],
                                 y=data.iloc[:,pair[1]].loc[(group==name)],
@@ -78,7 +79,7 @@ def plot_2D_scatters(data, ticklabels=None, group=None, display_correlation=Fals
             sns.scatterplot(x=data.iloc[:,pair[0]], y=data.iloc[:,pair[1]], ax=ax[ver_idx][hor_idx])
             
         #ax[ver_idx][hor_idx].set_xlim(0.0,2.0)
-        ax[ver_idx][hor_idx].set_ylim(0.0,0.7)
+        #ax[ver_idx][hor_idx].set_ylim(0.0,0.7)
         
         if display_correlation:
             corr = stats.pearsonr(data.iloc[:,pair[0]], data.iloc[:,pair[1]])[0]
@@ -123,9 +124,9 @@ def plot_3D_scattaer(x,y,z, x_label=None,y_label=None,z_label=None, group=None,g
     ax = Axes3D(fig)
 
     if not group is None:
-        for i in sorted(group.unique()):
-            ax.plot(x[group==i],y[group==i],z[group==i],marker=".",linestyle='None',
-                    label=group_name[i])
+        for name in sorted(group.unique()):
+            ax.plot(x[group==name],y[group==name],z[group==name],marker=".",linestyle='None',
+                    label=name)
         ax.legend()
     else:
         ax.plot(x,y,z,marker="o",linestyle='None')

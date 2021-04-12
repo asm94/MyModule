@@ -91,7 +91,7 @@ def adjust_number(data, target_column, attribute, sub_attribute=None, period=10,
     
     #Set the upper and lower limits of the interval and the maximum value of the target column
     lower = 0 if data[target_column].min() >= 0 else data[target_column].min()
-    upper = lower+period-1
+    upper = lower+period
     maximum = data[target_column].max()
         
     #For storing adjusted data
@@ -100,7 +100,7 @@ def adjust_number(data, target_column, attribute, sub_attribute=None, period=10,
     #Adjustment of the number of data in the interval of each period (undersampling)
     while lower <= maximum:
         #Extraction of target section data
-        data_in_range = data[(lower<=data.loc[:,target_column]) & (data.loc[:,target_column]<=upper)]
+        data_in_range = data[(lower<=data.loc[:,target_column]) & (data.loc[:,target_column]<upper)]
         
         #If the data of the target section does not exist,
         #or if the data of the target section does not contain all the attributes,

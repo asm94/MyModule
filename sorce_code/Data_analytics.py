@@ -26,12 +26,12 @@ def get_hypothesis_testing(df_a, df_b, tgt_clm, name_a='df_a', name_b='df_b',
         
         #Display swarm-gragh with ttests if 'display_gragh' is TRUE
         if display_gragh:
-            fig, ax = plt.subplots()
+            fig, ax = plt.subplots(figsize=(5,5))
             if gragh_mode=='boxplot': ax = sns.boxplot(data=[data_a, data_b])
             elif gragh_mode=='swarmplot': ax = sns.swarmplot(data=[data_a, data_b])
             ax.set_xticklabels([name_a, name_b])
             if max_ylim != None: ax.set_ylim(0, max_ylim)
-            ax.text(0.5, 1.05, clm, size=20, transform=ax.transAxes, horizontalalignment = 'center')
+            #ax.text(0.5, 1.05, clm, size=20, transform=ax.transAxes, horizontalalignment = 'center')
             ax.text(1.0, 1.17, 'two-sided Welch\'s t test', size=10, transform=ax.transAxes, horizontalalignment = 'right')
             ax.text(1.0, 1.10, 'p='+str(round((result_T.pvalue),3)), size=10, transform=ax.transAxes, horizontalalignment = 'right')
             ax.text(1.0, 1.03, 't='+str(round((result_T.statistic),3)), size=10, transform=ax.transAxes, horizontalalignment = 'right')
