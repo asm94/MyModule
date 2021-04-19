@@ -85,7 +85,8 @@ def plot_2D_scatters(data, ticklabels=None, group=None, display_correlation=Fals
             corr = stats.pearsonr(data.iloc[:,pair[0]], data.iloc[:,pair[1]])[0]
             ax[ver_idx][hor_idx].text(0.98, 1.03, f'R={round(corr,3)}', size=9, transform=ax[ver_idx][hor_idx].transAxes,
                                       horizontalalignment = 'right', bbox=dict(facecolor='white', edgecolor='black'))
-     
+         
+    plt.rcParams["font.size"] = 10
     plt.show()
     
     return
