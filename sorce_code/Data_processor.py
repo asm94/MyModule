@@ -136,7 +136,7 @@ def adjust_number(data, target_column, attribute, sub_attribute=None, period=10,
                 
                 #Calculates shortage of sub-attributes that cannot be sampled due to the number of data
                 surplus += -1*remaining[remaining<0].sum()
-                                                
+                                                                
                 #Adjust the distribution of the number of samples
                 #until the total number of samples per sub-attribute reaches
                 #the number of target attribute samples
@@ -160,10 +160,14 @@ def adjust_number(data, target_column, attribute, sub_attribute=None, period=10,
                         surplus -= int(surplus/len(remaining[remaining>=1]))
                                          
                     else:
-                        temp_counts = data_adjusted[sub_attribute].value_counts()
-                        tgt_index = temp_counts[remaining.index].sort_values()[:surplus].index
-                        remaining[tgt_index] -= 1
+                        if len(data_adjusted)>0:
+                            temp_counts = data_adjusted[sub_attribute].value_counts()
+                            tgt_index = temp_counts[remaining.index].sort_values()[:surplus].index
+                            remaining[tgt_index] -= 1
+                        else:
+                            remaining[:surplus] -= 1
                         break
+                    
                         
                     #Calculates shortage of sub-attributes that cannot be sampled due to the number of data
                     surplus += -1*remaining[remaining<0].sum()       
@@ -173,10 +177,10 @@ def adjust_number(data, target_column, attribute, sub_attribute=None, period=10,
                 for s_att in sub_sample.index:
                     sample = pd.concat([sample, data_att[data_att[sub_attribute]==s_att].sample(n=sub_sample[s_att], random_state=42)],
                                        axis=0, ignore_index=True)
-             
+                             
             #Concatenate adjusted data of a single attribute
             data_adjusted = pd.concat([data_adjusted, sample],axis=0, ignore_index=True)
-           
+                       
         #Section Update
         lower += period
         upper += period
