@@ -197,23 +197,35 @@ def adjust_number(data, target_column, attribute, sub_attribute=None, period=10,
 
 
 #Complete nan values with KNN
-def NaN_complete(df_target, df_train=pd.DataFrame(), ex_column=[], n_neighbors=3): 
+def NaN_complete(df_target, df_train=pd.DataFrame(), ex_column=[], n_neighbors=3, batch_size=0): 
     
     #Define complementer
     imputer = KNNImputer(n_neighbors=n_neighbors)
     
     #Completion
     #Completion source data is not data for completion
-    if len(df_train) > 0:
-        imputer.fit(df_train.drop(ex_column, axis=1))
-        np_values = imputer.transform(df_target.drop(ex_column, axis=1))
+    if len(df_train)==0: df_train = df_target
         
-    #Completion source data is data for completion
-    else:
-        np_values = imputer.fit_transform(df_target.drop(ex_column, axis=1))
+    imputer.fit(df_train.drop(ex_column, axis=1))
+        
+    df_out = pd.DataFrame()
+    if batch_size==0 or batch_size >= len(df_target): batch_size = len(df_target)
     
-    #Data forming
-    df_comp = pd.DataFrame(np_values, columns=df_target.drop(ex_column, axis=1).columns, index=df_target.index)
-    df_target = pd.concat([df_target.loc[:,ex_column], df_comp], axis=1).loc[:,df_target.columns]
-                        
-    return df_target
+    print('Processed:0/{}'.format(len(df_target)))
+    for i in range((len(df_target)//batch_size)):
+        st = batch_size*i
+        en = batch_size*(i+1)
+        if en >= len(df_target): en = len(df_target)
+            
+        np_value = imputer.transform(df_target.iloc[st:en].drop(ex_column, axis=1))
+        
+        #Data forming
+        df_comp = pd.DataFrame(np_value, columns=df_target.drop(ex_column, axis=1).columns,
+                               index=df_target.iloc[st:en].index)
+        df_comp = pd.concat([df_target.iloc[st:en].loc[:,ex_column], df_comp], axis=1)    
+        
+        df_out = df_out.append(df_comp)
+        
+        print('Processed:{0}/{1}'.format((en if en>=0 else len(df_target)), len(df_target)))
+                                    
+    return df_out.loc[:,df_target.columns]
