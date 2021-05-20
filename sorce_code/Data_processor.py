@@ -212,8 +212,9 @@ def NaN_complete(df_target, df_train=pd.DataFrame(), ex_column=[], n_neighbors=3
     if batch_size==0 or batch_size >= len(df_target): batch_size = len(df_target)
     
     print('Processed:0/{}'.format(len(df_target)))
-    for i in range((len(df_target)//batch_size)):
+    for i in range((len(df_target)//batch_size)+1):
         st = batch_size*i
+        if st >= len(df_target): break
         en = batch_size*(i+1)
         if en >= len(df_target): en = len(df_target)
             
@@ -226,6 +227,6 @@ def NaN_complete(df_target, df_train=pd.DataFrame(), ex_column=[], n_neighbors=3
         
         df_out = df_out.append(df_comp)
         
-        print('Processed:{0}/{1}'.format((en if en>=0 else len(df_target)), len(df_target)))
+        print('Processed:{0}/{1}'.format(en, len(df_target)))
                                     
     return df_out.loc[:,df_target.columns]
