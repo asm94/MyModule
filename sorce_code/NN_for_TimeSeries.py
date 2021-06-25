@@ -40,11 +40,11 @@ class LSTMclassifier(nn.Module):
         self.output_layer = nn.Sequential(nn.Linear(in_features=out_nodes, out_features=num_class),
                                           nn.Softmax(dim=-1) if num_class>2 else nn.Sigmoid())
     
-    def forward(self, x):
+    def forward(self, x, last_only=False):
         
         rnn_out, _ = self.rnn(x)
         
-        inter = self.inter_layer(rnn_out[:,-1,:])                        
+        inter = self.inter_layer(rnn_out[:,-1,:] if last_only else rnn_out)                        
         output = self.output_layer(inter)
         
         return output
@@ -436,7 +436,7 @@ def tuning_model(dataset_list, max_iter=50, interrupt_value=1.0, init_vals=None,
     trials = generate_trials_to_calculate([init_architect]) if init_vals!=None else Trials()
         
     best_first = fmin(
-        partial(objective, options=None),#, interrupt_val=interrupt_value),
+        partial(objective, options=init_rate),#, interrupt_val=interrupt_value),
         architect_parameters,
         algo=tpe.suggest,
         max_evals=max_iter,
